@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <cstdio>
 #include <vector>
@@ -11,87 +13,35 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cerrno>
-static int socketlasterr() {
-    return errno;
-}
 #endif
 
-class Network {
-public:
-    void ConnectDS();
-    void ListenUDP();
-    void RecieveUDP();
-    void SendRemotePlay(uint32_t mode, uint32_t quality, uint32_t qos);
-    void SendHeartbeat();
+namespace Network {
 
-    int GetTopJPEGID() {
-        const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
-        int largest_id = -1;
-        for (uint i = 0; i < jpegs_done_top.size(); i++) {
-            if (jpegs_done_top[i]) {
-                if (jpeg_map_top[i] > largest_id) {
-                    largest_id = jpeg_map_top[i];
-                }
-            }
-        }
-        return largest_id;
-    }
-    std::vector<uint8_t> GetTopJPEG() {
-        const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
-        int id = GetTopJPEGID();
-        for (uint i = 0; i < jpeg_map_top.size(); i++) {
-            if (jpeg_map_top[i] == id) {
-                return jpegs_top[i];
-            }
-        }
-        return {};
-    };
-    int GetBtmJPEGID() {
-        const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
-        int largest_id = -1;
-        for (uint i = 0; i < jpegs_done_btm.size(); i++) {
-            if (jpegs_done_btm[i]) {
-                if (jpeg_map_btm[i] > largest_id) {
-                    largest_id = jpeg_map_btm[i];
-                }
-            }
-        }
-        return largest_id;
-    }
-    std::vector<uint8_t> GetBtmJPEG() {
-        const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
-        int id = GetBtmJPEGID();
-        for (uint i = 0; i < jpeg_map_btm.size(); i++) {
-            if (jpeg_map_btm[i] == id) {
-                return jpegs_btm[i];
-            }
-        }
-        return {};
-    };
+typedef enum State {
+    CONNECTING,
+    CONNECTED_WAIT,
+    CONNECTED_STREAMING
+} State;
 
-    bool quit = false;
+void ConnectDS(const std::string host);
+void ListenUDP();
+void RecieveUDP();
+void SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS);
+int SendHeartbeat();
 
-    ~Network();
-    Network();
-private:
-    int ds_sock = -1;
-    int udp_sock = -1;
+State GetNetworkState();
+int GetConnectionAttempts();
 
-    std::array<int, 3> jpeg_map_top = { 0, 1, 2 };
-    std::array<bool, 3> jpegs_done_top = { false, false, false };
-    std::array<std::vector<uint8_t>, 3> jpegs_top;
-    std::recursive_mutex jpegs_top_mtx;
+std::vector<uint8_t> GetBtmJPEG();
+int GetBtmJPEGID();
+std::vector<uint8_t> GetTopJPEG();
+int GetTopJPEGID();
 
-    std::array<int, 3> jpeg_map_btm = { 0, 1, 2 };
-    std::array<bool, 3> jpegs_done_btm = { false, false, false };
-    std::array<std::vector<uint8_t>, 3> jpegs_btm;
-    std::recursive_mutex jpegs_btm_mtx;
-};
-
-Network& GetNetwork();
-void NetworkThread();
+void mainLoop(const std::string host, uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS);
+void Quit();
 
 #define NetworkError(fmt) printf("[Network] " fmt ": %d\n", socketlasterr())
+#define NetworkErrorF(fmt, ...) printf("[Network] " fmt ": %d\n", __VA_ARGS__, socketlasterr())
 
 struct Packet {
     uint32_t magic;
@@ -110,7 +60,7 @@ struct Packet {
     uint32_t length;
 };
 
-static uint32_t PacketSwap(uint32_t in) {
+static inline uint32_t Swap(uint32_t in) {
 #ifdef __WIIU__
     return __builtin_bswap32(in);
 #else
@@ -119,3 +69,5 @@ static uint32_t PacketSwap(uint32_t in) {
 }
 
 #define UDP_PACKET_SIZE (1448)
+
+} //namespace Network

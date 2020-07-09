@@ -2,13 +2,37 @@
 
 #include <unistd.h>
 #include <fstream>
+#include <thread>
 
-Network g_network;
-Network& GetNetwork() {
-    return g_network;
+#ifdef __WIIU__
+//cool
+#else
+static int socketlasterr() {
+    return errno;
 }
+#endif
 
-void Network::ConnectDS() {
+using namespace Network;
+
+State state = CONNECTING;
+bool quit = false;
+
+int ds_sock = -1;
+int udp_sock = -1;
+
+int connect_attempts = 0;
+
+std::array<int, 3> jpeg_map_top = { 0, 1, 2 };
+std::array<bool, 3> jpegs_done_top = { false, false, false };
+std::array<std::vector<uint8_t>, 3> jpegs_top;
+std::recursive_mutex jpegs_top_mtx;
+
+std::array<int, 3> jpeg_map_btm = { 0, 1, 2 };
+std::array<bool, 3> jpegs_done_btm = { false, false, false };
+std::array<std::vector<uint8_t>, 3> jpegs_btm;
+std::recursive_mutex jpegs_btm_mtx;
+
+void Network::ConnectDS(const std::string host) {
     int ret;
 
     ds_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -23,15 +47,23 @@ void Network::ConnectDS() {
         .sin_addr = {0},
         .sin_zero = {0},
     }; //TODO
-    ret = inet_pton(ds_addr.sin_family, "10.0.0.45", &(ds_addr.sin_addr));
+    ret = inet_pton(ds_addr.sin_family, host.c_str(), &(ds_addr.sin_addr));
     if (ret <= 0) {
-        NetworkError("IP decode error");
+        NetworkErrorF("Address %s invalid - check your config file", host.c_str());
+        if (ds_sock >= 0) {
+            shutdown(ds_sock, 2); //HACK wiiu compat
+            ds_sock = -1;
+        }
         return;
     }
 
     ret = connect(ds_sock, (struct sockaddr*)&ds_addr, sizeof(ds_addr));
     if (ret < 0) {
-        NetworkError("Can't connect");
+        NetworkErrorF("Can't connect to DS (%s)", host.c_str());
+        if (ds_sock >= 0) {
+            shutdown(ds_sock, 2); //HACK wiiu compat
+            ds_sock = -1;
+        }
         return;
     }
 }
@@ -52,6 +84,10 @@ void Network::ListenUDP() {
     ret = bind(udp_sock, (struct sockaddr*)&listen_addr, sizeof(listen_addr));
     if (ret < 0) {
         NetworkError("Can't bind to UDP");
+        if (udp_sock >= 0) {
+            shutdown(udp_sock, 2); //HACK wiiu compat
+            udp_sock = -1;
+        }
         return;
     }
 }
@@ -64,6 +100,7 @@ void Network::RecieveUDP() {
 
     ret = recvfrom(udp_sock, buf, UDP_PACKET_SIZE, 0, (struct sockaddr*)&remote_addr, &remote_addr_len);
     if (ret <= 0) {
+        if (quit) return;
         NetworkError("RecieveUDP failed");
         return;
     }
@@ -77,8 +114,8 @@ void Network::RecieveUDP() {
     int lastPacket = flags & 0x10;
 
     uint8_t* jpeg_data = buf + 4;
-    int jpeg_size = ret - 4;
-    int jpeg_offset = seq * (UDP_PACKET_SIZE - 4);
+    uint jpeg_size = ret - 4;
+    uint jpeg_offset = seq * (UDP_PACKET_SIZE - 4);
 
     int jpeg_ndx = -1;
     int lowest_ndx = 0;
@@ -126,78 +163,184 @@ void Network::RecieveUDP() {
     if (jpeg.size() < (jpeg_offset + jpeg_size)) {
         //printf("%s: resizing jpeg %d/%ld to %d(%d)\n", isTop?"top":"btm",jpeg_ndx, jpeg.size(), (jpeg_offset + jpeg_size), (jpeg_offset + jpeg_size) / UDP_PACKET_SIZE);
         jpeg.resize(jpeg_offset + jpeg_size);
-        for (int i = 0; i < jpeg_size; i++) {
+        for (uint i = 0; i < jpeg_size; i++) {
             jpeg[jpeg_offset + i] = jpeg_data[i];
         }
     } else {
-        for (int i = 0; i < jpeg_size; i++) {
+        for (uint i = 0; i < jpeg_size; i++) {
             jpeg[jpeg_offset + i] = jpeg_data[i];
         }
     }
 
     if (lastPacket) {
         jpegs_done[jpeg_ndx] = true;
+        state = CONNECTED_STREAMING;
         //printf("%s jpegs: %d:%s %d:%s %d:%s\n", isTop?"top":"btm", jpeg_map[0], jpegs_done[0]?"true":"false", jpeg_map[1],jpegs_done[1]?"true":"false", jpeg_map[2],jpegs_done[2]?"true":"false");
     }
 }
 
-void Network::SendRemotePlay(uint32_t mode, uint32_t quality, uint32_t qos) {
+void Network::SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS) {
     Packet pac = {
-        .magic = PacketSwap(0x12345678),
-        .seq = PacketSwap(1),
-        .type = PacketSwap(0),
-        .cmd = PacketSwap(901),
+        .magic = Swap(0x12345678),
+        .seq = Swap(1),
+        .type = Swap(0),
+        .cmd = Swap(901),
         .args = { .RemotePlay = {
-            .mode = PacketSwap(mode),
-            .quality = PacketSwap(quality),
-            .qos = PacketSwap(qos),
+            .mode = Swap(priority << 8 | priorityFactor),
+            .quality = Swap(jpegQuality),
+            .qos = Swap(QoS*2 << 16),
         }},
 
-        .length = PacketSwap(0),
+        .length = Swap(0),
     };
     send(ds_sock, &pac, sizeof(pac), 0);
 }
 
-void Network::SendHeartbeat() {
+int Network::SendHeartbeat() {
     Packet pac = {
-        .magic = PacketSwap(0x12345678),
-        .seq = PacketSwap(1),
-        .type = PacketSwap(0),
-        .cmd = PacketSwap(0),
+        .magic = Swap(0x12345678),
+        .seq = Swap(1),
+        .type = Swap(0),
+        .cmd = Swap(0),
         .args = { .raw = { 0 } },
 
-        .length = PacketSwap(0),
+        .length = Swap(0),
     };
-    send(ds_sock, &pac, sizeof(pac), 0);
+    int ret = send(ds_sock, &pac, sizeof(pac), 0);
+    if (ret < 0) {
+        return socketlasterr();
+    } else return 0;
 }
 
-
-void NetworkThread() {
-    Network& network = GetNetwork();
-    network.ListenUDP();
-    network.ConnectDS();
-    network.SendRemotePlay(1 << 8 | 5, 90, 30 * 1024 * 1024 / 8);
-
-    for (int i = 0; i < 2; i++) {
-        network.SendHeartbeat();
+static void heartbeatLoop() {
+    while (!quit) {
+        SendHeartbeat();
         sleep(1);
     }
-    while (!network.quit) {
-        network.RecieveUDP();
-    }
 }
 
-Network::Network() {
+void Network::mainLoop(const std::string host, uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS) {
+    //init bits
     for (auto& v : jpegs_top) {
         v.reserve(30000);
     }
     for (auto& v : jpegs_btm) {
         v.reserve(30000);
     }
-}
 
-Network::~Network() {
+    //connect
+    ListenUDP();
+    while (udp_sock < 0 && !quit) {
+        sleep(1);
+        connect_attempts++;
+        ListenUDP();
+    }
+    ConnectDS(host);
+    while (ds_sock < 0 && !quit) {
+        sleep(1);
+        connect_attempts++;
+        ConnectDS(host);
+    }
+    if (quit) {
+        printf("[Network] quit requested\n");
+        if (ds_sock >= 0) {
+            printf("[Network] Tearing down ds sock\n");
+            shutdown(ds_sock, 2); //HACK wiiu compat
+        }
+        if (udp_sock >= 0) {
+            printf("[Network] Tearing down udp sock\n");
+            shutdown(udp_sock, 2); //HACK wiiu compat
+        }
+        printf("[Network] bye!\n");
+        return;
+    }
+
+    state = CONNECTED_WAIT;
+    sleep(2); //I know, I know
+
+    SendRemotePlay(priority, priorityFactor, jpegQuality, QoS);
+
+    for (int i = 0; i < 2 && !quit; i++) {
+        SendHeartbeat();
+        sleep(1);
+    }
+    std::thread heartbeatThread(heartbeatLoop);
+    while (!quit) {
+        RecieveUDP();
+    }
+    heartbeatThread.join();
+
     if (ds_sock >= 0) {
         shutdown(ds_sock, 2); //HACK wiiu compat
+        ds_sock = -1;
     }
+    if (udp_sock >= 0) {
+        shutdown(udp_sock, 2); //HACK wiiu compat
+        udp_sock = -1;
+    }
+}
+
+void Network::Quit() {
+    if (ds_sock >= 0) {
+        shutdown(ds_sock, 2); //HACK wiiu compat
+        ds_sock = -1;
+    }
+    if (udp_sock >= 0) {
+        shutdown(udp_sock, 2); //HACK wiiu compat
+        udp_sock = -1;
+    }
+    quit = true;
+}
+
+State Network::GetNetworkState() {
+    return state;
+}
+
+int Network::GetConnectionAttempts() {
+    return connect_attempts;
+}
+
+int Network::GetTopJPEGID() {
+    const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
+    int largest_id = -1;
+    for (uint i = 0; i < jpegs_done_top.size(); i++) {
+        if (jpegs_done_top[i]) {
+            if (jpeg_map_top[i] > largest_id) {
+                largest_id = jpeg_map_top[i];
+            }
+        }
+    }
+    return largest_id;
+}
+std::vector<uint8_t> Network::GetTopJPEG() {
+    const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
+    int id = GetTopJPEGID();
+    for (uint i = 0; i < jpeg_map_top.size(); i++) {
+        if (jpeg_map_top[i] == id) {
+            return jpegs_top[i];
+        }
+    }
+    return {};
+}
+int Network::GetBtmJPEGID() {
+    const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
+    int largest_id = -1;
+    for (uint i = 0; i < jpegs_done_btm.size(); i++) {
+        if (jpegs_done_btm[i]) {
+            if (jpeg_map_btm[i] > largest_id) {
+                largest_id = jpeg_map_btm[i];
+            }
+        }
+    }
+    return largest_id;
+}
+std::vector<uint8_t> Network::GetBtmJPEG() {
+    const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
+    int id = GetBtmJPEGID();
+    for (uint i = 0; i < jpeg_map_btm.size(); i++) {
+        if (jpeg_map_btm[i] == id) {
+            return jpegs_btm[i];
+        }
+    }
+    return {};
 }
