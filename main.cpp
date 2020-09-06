@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
         if (networkState == Network::CONNECTED_STREAMING) {
             int cJPEG = Network::GetTopJPEGID();
             if (lastJPEG != cJPEG) {
-                auto jpeg = Network::GetTopJPEG();
+                auto jpeg = Network::GetTopJPEG(cJPEG);
                 int pitch;
                 void* pixels;
                 ret = SDL_LockTexture(topTexture, NULL, &pixels, &pitch);

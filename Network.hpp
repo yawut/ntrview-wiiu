@@ -32,10 +32,10 @@ int SendHeartbeat();
 State GetNetworkState();
 int GetConnectionAttempts();
 
-std::vector<uint8_t> GetBtmJPEG();
-int GetBtmJPEGID();
-std::vector<uint8_t> GetTopJPEG();
-int GetTopJPEGID();
+std::vector<uint8_t>& GetBtmJPEG(uint8_t id);
+uint8_t GetBtmJPEGID();
+std::vector<uint8_t>& GetTopJPEG(uint8_t id);
+uint8_t GetTopJPEGID();
 
 void mainLoop(const std::string host, uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS);
 void Quit();

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <thread>
+#include <algorithm>
 
 #ifdef __WIIU__
 //cool
@@ -21,16 +22,6 @@ int ds_sock = -1;
 int udp_sock = -1;
 
 int connect_attempts = 0;
-
-std::array<int, 3> jpeg_map_top = { 0, 1, 2 };
-std::array<bool, 3> jpegs_done_top = { false, false, false };
-std::array<std::vector<uint8_t>, 3> jpegs_top;
-std::recursive_mutex jpegs_top_mtx;
-
-std::array<int, 3> jpeg_map_btm = { 0, 1, 2 };
-std::array<bool, 3> jpegs_done_btm = { false, false, false };
-std::array<std::vector<uint8_t>, 3> jpegs_btm;
-std::recursive_mutex jpegs_btm_mtx;
 
 void Network::ConnectDS(const std::string host) {
     int ret;
@@ -92,6 +83,76 @@ void Network::ListenUDP() {
     }
 }
 
+typedef struct jpeg {
+    uint8_t id;
+    std::array<bool, 256> seq;
+    uint8_t seq_last;
+    bool pending;
+    bool good;
+    std::vector<uint8_t> data;
+} jpeg;
+
+static std::array<jpeg, 256> receivingFrames_top;
+static std::array<jpeg, 256> receivingFrames_btm;
+
+static void initJpeg(jpeg& jpeg) {
+    jpeg.seq.fill(false);
+    jpeg.seq_last = 254;
+    jpeg.pending = false;
+    jpeg.good = false;
+    jpeg.data.reserve(30000);
+    jpeg.data.clear();
+}
+
+static jpeg& getJpegForID(uint8_t id, int isTop) {
+    auto& receivingFrames = (isTop) ? receivingFrames_top : receivingFrames_btm;
+    auto& jpeg = receivingFrames[id];
+    if (jpeg.good) {
+        //this will never be hit for recent frames, only old (>127) ones
+        initJpeg(jpeg);
+    }
+    jpeg.id = id; //TODO refactor this out
+    return jpeg;
+}
+
+uint8_t lastGoodID_top = 255;
+uint8_t lastGoodID_btm = 255;
+
+static void checkGoodJpeg(jpeg& jpeg, int isTop) {
+    auto& lastGoodID = (isTop) ? lastGoodID_top : lastGoodID_btm;
+    auto& receivingFrames = (isTop) ? receivingFrames_top : receivingFrames_btm;
+    if (jpeg.pending) {
+        //check we actually got a full frame
+        bool all_seqs = std::all_of(jpeg.seq.cbegin(),
+            std::next(jpeg.seq.cbegin(), jpeg.seq_last),
+            [](bool b){ return b; }
+        );
+        //all seqs OK, ready to display
+        if (all_seqs) {
+            //printf("frame %d OK\n", jpeg.id);
+            jpeg.good = true;
+            //only interested in data for frames after this one
+            lastGoodID = jpeg.id;
+            //let display know we're good
+            state = CONNECTED_STREAMING;
+            //hack: set the last few frames as good, too. Helps getJpegForID
+            //clear out old state.
+            //TODO: come up with a less flaky solution for this
+            int ndx = lastGoodID - 1;
+            receivingFrames[ndx-- % 256].good = true;
+            receivingFrames[ndx-- % 256].good = true;
+            receivingFrames[ndx   % 256].good = true;
+        }
+    }
+}
+
+//https://www.khanacademy.org/computing/computer-science/cryptography/modarithmetic/a/modular-addition-and-subtraction
+static int8_t diffFrameIDs(uint8_t incoming, uint8_t old) {
+    int diff = (int)incoming - (int)old;
+    uint8_t mdiff = diff % 256;
+    return (int8_t)mdiff;
+}
+
 void Network::RecieveUDP() {
     int ret;
     uint8_t buf[UDP_PACKET_SIZE];
@@ -117,66 +178,31 @@ void Network::RecieveUDP() {
     uint jpeg_size = ret - 4;
     uint jpeg_offset = seq * (UDP_PACKET_SIZE - 4);
 
-    int jpeg_ndx = -1;
-    int lowest_ndx = 0;
+    auto& lastGoodID = (isTop) ? lastGoodID_top : lastGoodID_btm;
 
-    auto& jpeg_map = (isTop) ? jpeg_map_top : jpeg_map_btm;
-    auto& jpegs_done = (isTop) ? jpegs_done_top : jpegs_done_btm;
-    auto& jpegs = (isTop) ? jpegs_top : jpegs_btm;
-
-    for (uint i = 0; i < jpeg_map.size(); i++) {
-        if (jpeg_map[i] == id) {
-            jpeg_ndx = i;
-            break;
-        } else if (jpeg_map[i] < jpeg_map[lowest_ndx]) {
-            lowest_ndx = i;
+    if (diffFrameIDs(id, lastGoodID) < 1) {
+        if (diffFrameIDs(id, lastGoodID) == 0) {
+            printf("[Network] BUG: received seq for previous frame\n");
         }
+        printf("[Network] Discarding late seq %d for frame %d, last frame is %d\n", seq, id, lastGoodID);
+        return;
     }
 
-    if (jpeg_ndx == -1) {
-    /*  Overflow special-cases */
-        if (id == 0 || id == 1 || id == 2) {
-            int ndx_255 = -1, ndx_254 = -1, ndx_253 = -1;
-            for (uint i = 0; i < jpeg_map.size(); i++) {
-                if (jpeg_map[i] == 255) ndx_255 = i;
-                if (jpeg_map[i] == 254) ndx_254 = i;
-                if (jpeg_map[i] == 253) ndx_253 = i;
-            }
-            if (id == 1 && ndx_254 != -1) {
-                jpeg_ndx = ndx_254;
-            } else if (id == 2 && ndx_255 != -1) {
-                jpeg_ndx = ndx_255;
-            } else if (id == 0 && ndx_253 != -1) {
-                jpeg_ndx = ndx_253;
-            } else {
-                jpeg_ndx = lowest_ndx;
-            }
-        } else {
-            jpeg_ndx = lowest_ndx;
-        }
-
-        jpeg_map[jpeg_ndx] = id;
-        jpegs_done[jpeg_ndx] = false;
+    auto& jpeg = getJpegForID(id, isTop);
+    jpeg.seq[seq] = true;
+    if (jpeg.data.size() < (jpeg_offset + jpeg_size)) {
+        jpeg.data.resize(jpeg_offset + jpeg_size);
+        //printf("resizing jpeg to %ld bytes for frame %d\n", jpeg.data.size(), id);
     }
-
-    auto& jpeg = jpegs[jpeg_ndx];
-    if (jpeg.size() < (jpeg_offset + jpeg_size)) {
-        //printf("%s: resizing jpeg %d/%ld to %d(%d)\n", isTop?"top":"btm",jpeg_ndx, jpeg.size(), (jpeg_offset + jpeg_size), (jpeg_offset + jpeg_size) / UDP_PACKET_SIZE);
-        jpeg.resize(jpeg_offset + jpeg_size);
-        for (uint i = 0; i < jpeg_size; i++) {
-            jpeg[jpeg_offset + i] = jpeg_data[i];
-        }
-    } else {
-        for (uint i = 0; i < jpeg_size; i++) {
-            jpeg[jpeg_offset + i] = jpeg_data[i];
-        }
-    }
+    std::copy_n(jpeg_data, jpeg_size, std::next(jpeg.data.begin(), jpeg_offset));
 
     if (lastPacket) {
-        jpegs_done[jpeg_ndx] = true;
-        state = CONNECTED_STREAMING;
-        //printf("%s jpegs: %d:%s %d:%s %d:%s\n", isTop?"top":"btm", jpeg_map[0], jpegs_done[0]?"true":"false", jpeg_map[1],jpegs_done[1]?"true":"false", jpeg_map[2],jpegs_done[2]?"true":"false");
+        //printf("pending frame %d on seq %d (last: %d)\n", id, seq, lastGoodID);
+        jpeg.seq_last = seq;
+        jpeg.pending = true;
     }
+
+    checkGoodJpeg(jpeg, isTop);
 }
 
 void Network::SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS) {
@@ -221,11 +247,11 @@ static void heartbeatLoop() {
 
 void Network::mainLoop(const std::string host, uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS) {
     //init bits
-    for (auto& v : jpegs_top) {
-        v.reserve(30000);
+    for (auto& jpeg : receivingFrames_top) {
+        initJpeg(jpeg);
     }
-    for (auto& v : jpegs_btm) {
-        v.reserve(30000);
+    for (auto& jpeg : receivingFrames_btm) {
+        initJpeg(jpeg);
     }
 
     //connect
@@ -300,47 +326,17 @@ int Network::GetConnectionAttempts() {
     return connect_attempts;
 }
 
-int Network::GetTopJPEGID() {
-    const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
-    int largest_id = -1;
-    for (uint i = 0; i < jpegs_done_top.size(); i++) {
-        if (jpegs_done_top[i]) {
-            if (jpeg_map_top[i] > largest_id) {
-                largest_id = jpeg_map_top[i];
-            }
-        }
-    }
-    return largest_id;
+
+//there's a lot of race conditions here.
+uint8_t Network::GetTopJPEGID() {
+    return lastGoodID_top;
 }
-std::vector<uint8_t> Network::GetTopJPEG() {
-    const std::lock_guard<std::recursive_mutex> lock(jpegs_top_mtx);
-    int id = GetTopJPEGID();
-    for (uint i = 0; i < jpeg_map_top.size(); i++) {
-        if (jpeg_map_top[i] == id) {
-            return jpegs_top[i];
-        }
-    }
-    return {};
+std::vector<uint8_t>& Network::GetTopJPEG(uint8_t id) {
+    return receivingFrames_top[id].data;
 }
-int Network::GetBtmJPEGID() {
-    const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
-    int largest_id = -1;
-    for (uint i = 0; i < jpegs_done_btm.size(); i++) {
-        if (jpegs_done_btm[i]) {
-            if (jpeg_map_btm[i] > largest_id) {
-                largest_id = jpeg_map_btm[i];
-            }
-        }
-    }
-    return largest_id;
+uint8_t Network::GetBtmJPEGID() {
+    return lastGoodID_btm;
 }
-std::vector<uint8_t> Network::GetBtmJPEG() {
-    const std::lock_guard<std::recursive_mutex> lock(jpegs_btm_mtx);
-    int id = GetBtmJPEGID();
-    for (uint i = 0; i < jpeg_map_btm.size(); i++) {
-        if (jpeg_map_btm[i] == id) {
-            return jpegs_btm[i];
-        }
-    }
-    return {};
+std::vector<uint8_t>& Network::GetBtmJPEG(uint8_t id) {
+    return receivingFrames_btm[id].data;
 }
