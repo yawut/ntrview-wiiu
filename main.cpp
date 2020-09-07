@@ -1,8 +1,8 @@
-#include <SDL.h>
-#include <SDL_ttf.h>
 #include <turbojpeg.h>
 #include <INIReader.h>
 
+#include "gfx/Gfx.hpp"
+#include "common.h"
 
 #ifdef __WIIU__
 #include <whb/log.h>
@@ -11,10 +11,6 @@
 #include <whb/proc.h>
 #include <sys/iosupport.h>
 #include <romfs-wiiu.h>
-#define USE_RAMFS
-
-#define NTRVIEW_DIR "fs:/vol/external01/wiiu/apps/ntrview"
-#define RAMFS_DIR "resin:/res"
 
 static ssize_t wiiu_log_write(struct _reent* r, void* fd, const char* ptr, size_t len) {
     (void)r; (void)fd;
@@ -25,15 +21,7 @@ static devoptab_t dotab_stdout = {
     .name = "udp_out",
     .write_r = &wiiu_log_write,
 };
-#else
-#include <stdio.h>
-
-#define NTRVIEW_DIR "."
-#define RAMFS_DIR "../resin/res"
-
 #endif
-
-#define IS_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -45,24 +33,8 @@ static devoptab_t dotab_stdout = {
 
 #include "Network.hpp"
 
-std::map<char, SDL_Texture*> numbers_text = {
-    {'0', NULL},
-    {'1', NULL},
-    {'2', NULL},
-    {'3', NULL},
-    {'4', NULL},
-    {'5', NULL},
-    {'6', NULL},
-    {'7', NULL},
-    {'8', NULL},
-    {'9', NULL},
-    {':', NULL},
-    {'.', NULL}
-};
-
 int main(int argc, char** argv) {
-    Uint32 format;
-    int access, ret;
+    int ret;
     (void)argc, (void)argv;
 
     #ifdef USE_RAMFS
@@ -79,79 +51,33 @@ int main(int argc, char** argv) {
 
     printf("hi\n");
 
-/*  Init libraries */
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Couldn't init SDL!\n");
-        SDL_Quit();
-        return 3;
-    }
-
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-
-    if (SDL_CreateWindowAndRenderer(1280, 720, 0, &window, &renderer)) {
-        printf("Couldn't make window and renderer: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 3;
-    }
+    Gfx::Init();
+    tjhandle tj_handle = tjInitDecompress();
 
     printf("did init\n");
 
-    ret = TTF_Init();
-    if (ret < 0) {
-        printf("Couldn't initialise fonts: %s\n", TTF_GetError());
-        SDL_Quit();
-        return 3;
-    }
-
-    TTF_Font* font = TTF_OpenFont(RAMFS_DIR "/opensans.ttf", 64);
-    if (!font) {
-        printf("Couldn't open font: %s\n", TTF_GetError());
-        SDL_Quit();
-        return 3;
-    }
-
-    tjhandle tj_handle = tjInitDecompress();
-
 /*  Show loading text */
-    SDL_Surface* loading_text_surf = TTF_RenderUTF8_Blended(font,
-        "Now Loading",
-        (SDL_Color) { 0xFF, 0xFF, 0xFF }
-    );
-    SDL_Texture* loading_text = SDL_CreateTextureFromSurface(renderer, loading_text_surf);
-    SDL_FreeSurface(loading_text_surf);
-    loading_text_surf = NULL;
-
-    SDL_SetRenderDrawColor(renderer, 0x7F, 0x7F, 0x7F, 0xFF);
-    SDL_RenderClear(renderer);
-
-    SDL_Rect dstrect = { 0 };
-    SDL_QueryTexture(loading_text, &format, &access, &dstrect.w, &dstrect.h);
-    dstrect.y = 720 - dstrect.h;
-
-    SDL_RenderCopy(renderer, loading_text, NULL, &dstrect);
-    SDL_RenderPresent(renderer);
+    Gfx::Texture loading_text("Now Loading");
+    Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+    loading_text.Render((Gfx::Rect) {
+        .x = 0,
+        .y = 720 - loading_text.d.h,
+        .d = loading_text.d,
+    });
+    Gfx::Present();
 
 /*  Allocate textures for the received frames */
-    SDL_Texture* topTexture = SDL_CreateTexture(renderer,
-        IS_BIG_ENDIAN ? SDL_PIXELFORMAT_RGBA8888 : SDL_PIXELFORMAT_ABGR8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        240, 400
-    );
-    if (!topTexture) {
-        printf("Couldn't make texture: %s\n", SDL_GetError());
-        SDL_Quit();
+    Gfx::Texture topTexture(240, 400);
+    if (!topTexture.valid()) {
+        printf("Couldn't make texture: %s\n", Gfx::GetError());
+        Gfx::Quit();
         return 3;
     }
 
-    SDL_Texture* botTexture = SDL_CreateTexture(renderer,
-        IS_BIG_ENDIAN ? SDL_PIXELFORMAT_RGBA8888 : SDL_PIXELFORMAT_ABGR8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        240, 400
-    );
-    if (!botTexture) {
-        printf("Couldn't make texture: %s\n", SDL_GetError());
-        SDL_Quit();
+    Gfx::Texture btmTexture(240, 320);
+    if (!btmTexture.valid()) {
+        printf("Couldn't make texture: %s\n", Gfx::GetError());
+        Gfx::Quit();
         return 3;
     }
 
@@ -179,41 +105,17 @@ int main(int argc, char** argv) {
     uint8_t bg_b = config.GetInteger("display", "background_b", 0x7F);
 
 /*  Pre-render important texts */
-    for (auto& pair : numbers_text) {
-        char str[2] = { pair.first, '\0' };
-        SDL_Surface* number_surf = TTF_RenderUTF8_Blended(font,
-            str,
-            (SDL_Color) { 0xFF, 0xFF, 0xFF }
-        );
-        pair.second = SDL_CreateTextureFromSurface(renderer, number_surf);
-        SDL_FreeSurface(number_surf);
+    char numbers[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', '.' };
+    for (char num : numbers) {
+        Gfx::CacheNumber(num);
     }
 
     std::string connecting_text_str("Connecting to ");
     connecting_text_str.append(host);
-    SDL_Surface* connecting_text_surf = TTF_RenderUTF8_Blended(font,
-        connecting_text_str.c_str(),
-        (SDL_Color) { 0xFF, 0xFF, 0xFF }
-    );
-    SDL_Texture* connecting_text = SDL_CreateTextureFromSurface(renderer, connecting_text_surf);
-    SDL_FreeSurface(connecting_text_surf);
-    connecting_text_surf = NULL;
+    Gfx::Texture connecting_text(connecting_text_str);
 
-    SDL_Surface* attempt_text_surf = TTF_RenderUTF8_Blended(font,
-        ", attempt ",
-        (SDL_Color) { 0xFF, 0xFF, 0xFF }
-    );
-    SDL_Texture* attempt_text = SDL_CreateTextureFromSurface(renderer, attempt_text_surf);
-    SDL_FreeSurface(attempt_text_surf);
-    attempt_text_surf = NULL;
-
-    SDL_Surface* connected_text_surf = TTF_RenderUTF8_Blended(font,
-        "Connected.",
-        (SDL_Color) { 0xFF, 0xFF, 0xFF }
-    );
-    SDL_Texture* connected_text = SDL_CreateTextureFromSurface(renderer, connected_text_surf);
-    SDL_FreeSurface(connected_text_surf);
-    connected_text_surf = NULL;
+    Gfx::Texture attempt_text(", attempt ");
+    Gfx::Texture connected_text("Connected.");
 
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, host, priority, priorityFactor, jpegQuality, QoS);
@@ -236,82 +138,86 @@ int main(int argc, char** argv) {
         Network::State networkState = Network::GetNetworkState();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            SDL_SetRenderDrawColor(renderer, bg_r, bg_g, bg_b, 0xFF);
+            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
         } else {
-            SDL_SetRenderDrawColor(renderer, 0x7F, 0x7F, 0x7F, 0xFF);
+            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
         }
-        SDL_RenderClear(renderer);
 
         if (networkState == Network::CONNECTED_STREAMING) {
             int cJPEG = Network::GetTopJPEGID();
             if (lastJPEG != cJPEG) {
                 auto jpeg = Network::GetTopJPEG(cJPEG);
-                int pitch;
-                void* pixels;
-                ret = SDL_LockTexture(topTexture, NULL, &pixels, &pitch);
-                if (ret == 0) {
+
+                auto pixels = topTexture.Lock();
+                if (topTexture.locked && !pixels.empty()) {
                     ret = tjDecompress2(tj_handle,
-                        jpeg.data(), jpeg.size(), (uint8_t*)pixels,
-                        240, pitch, 0,
+                        jpeg.data(), jpeg.size(), pixels.data(),
+                        topTexture.d.w, topTexture.pitch, 0,
                         TJPF_RGBA, 0
                     );
 
-                    SDL_UnlockTexture(topTexture);
+                    topTexture.Unlock(pixels);
 
                     if (ret) {
                         printf("[Decoder] %s\n", tjGetErrorStr());
                     }
                     lastJPEG = cJPEG;
                 } else {
-                    printf("[Decoder] %s\n", SDL_GetError());
+                    printf("[Decoder] Error: %s\n", Gfx::GetError());
                 }
             }
 
-            SDL_Rect dstrect = {
+            Gfx::Rect dstrect = {
                 .x = (1280 - 720) / 2,
                 .y = -(1200 - 720) / 2,
-                .w = 720,
-                .h = 1200,
+                .d = {
+                    .w = 720,
+                    .h = 1200,
+                },
+                .angle = 270,
             };
-            SDL_RenderCopyEx(renderer, topTexture, NULL, &dstrect, 270, NULL, SDL_FLIP_NONE);
+            topTexture.Render(dstrect);
         } else if (networkState == Network::CONNECTING) {
-            SDL_Rect dstrect = { 0 };
-            SDL_QueryTexture(connecting_text, &format, &access, &dstrect.w, &dstrect.h);
-            dstrect.y = 720 - dstrect.h;
-
-            SDL_RenderCopy(renderer, connecting_text, NULL, &dstrect);
-            dstrect.x += dstrect.w;
+            int x = 0;
+            connecting_text.Render((Gfx::Rect) {
+                .x = x,
+                .y = 720 - connecting_text.d.h,
+                .d = connecting_text.d,
+            });
+            x += connecting_text.d.w;
 
             int connect_attempts = Network::GetConnectionAttempts();
             if (connect_attempts > 0) {
-                SDL_QueryTexture(attempt_text, &format, &access, &dstrect.w, &dstrect.h);
-                dstrect.y = 720 - dstrect.h;
-
-                SDL_RenderCopy(renderer, attempt_text, NULL, &dstrect);
-                dstrect.x += dstrect.w;
+                attempt_text.Render((Gfx::Rect) {
+                    .x = x,
+                    .y = 720 - attempt_text.d.h,
+                    .d = attempt_text.d,
+                });
+                x += attempt_text.d.w;
 
                 std::string attempts_num_str = std::to_string(connect_attempts);
                 for (auto c : attempts_num_str) {
-                    SDL_Texture* num_tex = numbers_text[c];
+                    auto num_tex_o = Gfx::GetCachedNumber(c);
+                    if (!num_tex_o) continue;
+                    auto& num_tex = num_tex_o->get();
 
-                    SDL_QueryTexture(num_tex, &format, &access, &dstrect.w, &dstrect.h);
-                    dstrect.y = 720 - dstrect.h;
-
-                    SDL_RenderCopy(renderer, num_tex, NULL, &dstrect);
-                    dstrect.x += dstrect.w;
+                    num_tex.Render((Gfx::Rect) {
+                        .x = x,
+                        .y = 720 - num_tex.d.h,
+                        .d = num_tex.d,
+                    });
+                    x += num_tex.d.w;
                 }
-
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
-            SDL_Rect dstrect = { 0 };
-            SDL_QueryTexture(connected_text, &format, &access, &dstrect.w, &dstrect.h);
-            dstrect.y = 720 - dstrect.h;
-
-            SDL_RenderCopy(renderer, connected_text, NULL, &dstrect);
-            dstrect.x += dstrect.w;
+            connected_text.Render((Gfx::Rect) {
+                .x = 0,
+                .y = 720 - connected_text.d.h,
+                .d = connected_text.d,
+            });
         }
 
-        SDL_RenderPresent(renderer);
+        Gfx::Present();
     }
 
     printf("waiting for network to quit\n");
@@ -327,7 +233,7 @@ int main(int argc, char** argv) {
 
     printf("done!\n");
 
-    SDL_Quit();
+    Gfx::Quit();
 
     #ifdef __WIIU__
     printf("bye!\n");

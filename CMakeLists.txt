@@ -5,77 +5,89 @@ if (WIIU)
     include("${WUT_ROOT}/share/wut.cmake" REQUIRED)
 endif()
 
-find_package(SDL2 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libturbojpeg REQUIRED IMPORTED_TARGET libturbojpeg)
-pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf)
+
 add_subdirectory(ext/inih)
 
 add_executable(ntrview
     main.cpp
     Network.cpp
-
-    app.romfs.o
 )
-
+target_include_directories(ntrview PRIVATE
+    .
+)
+set_property(TARGET ntrview PROPERTY CXX_STANDARD 20)
 target_compile_options(ntrview PRIVATE
     -Wall -Wextra -Wno-missing-field-initializers
 )
 
 if (WIIU)
+    wut_create_rpx(ntrview)
     target_compile_definitions(ntrview PRIVATE
         __WIIU__
     )
-endif()
 
-if (NOT WIIU)
+    set(NTRVIEW_GFX_SDL ON)
+    set(NTRVIEW_USE_RAMFS ON)
+elseif (NOT WIIU)
     find_package(Threads)
     target_link_libraries(ntrview Threads::Threads)
+
+    set(NTRVIEW_GFX_SDL ON)
+    set(NTRVIEW_USE_RAMFS OFF)
 endif()
 
-if (TARGET SDL2::SDL2)
-    target_link_libraries(ntrview SDL2::SDL2)
-elseif (TARGET SDL2::SDL2-static)
-    target_link_libraries(ntrview SDL2::SDL2-static)
-else()
-    error("SDL2 not found!")
+if (NTRVIEW_GFX_SDL)
+    target_sources(ntrview PRIVATE
+        gfx/Gfx_SDL.cpp
+    )
+    target_compile_definitions(ntrview PRIVATE
+        GFX_SDL
+    )
+
+    find_package(SDL2 REQUIRED)
+    pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf)
+
+    if (TARGET SDL2::SDL2)
+        target_link_libraries(ntrview SDL2::SDL2 PkgConfig::SDL2_ttf)
+    elseif (TARGET SDL2::SDL2-static)
+        target_link_libraries(ntrview SDL2::SDL2-static PkgConfig::SDL2_ttf)
+    else()
+        error("SDL2 not found!")
+    endif()
 endif()
 
 target_link_libraries(ntrview
     PkgConfig::libturbojpeg
-    PkgConfig::SDL2_ttf
     inih::inih-cpp
 )
 
-if (WIIU)
+if (NTRVIEW_USE_RAMFS)
+    target_compile_definitions(ntrview PRIVATE
+        USE_RAMFS
+    )
+    add_custom_command(
+        OUTPUT app.romfs.o
+        COMMAND tar -H ustar -cvf romfs.tar -C "${CMAKE_CURRENT_SOURCE_DIR}/resin" .
+        COMMAND ${CMAKE_LINKER} --relocatable --format binary --output app.romfs.o romfs.tar
+        COMMAND rm -f romfs.tar
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resin"
+    )
+    set_source_files_properties(
+        app.romfs.o
+        PROPERTIES
+        EXTERNAL_OBJECT true
+        GENERATED true
+    )
+    add_library(romfs
+        app.romfs.o
+        ext/resinfs/source/romfs.c
+    )
+    target_include_directories(romfs
+        PUBLIC
+            ext/resinfs/include
+    )
 
-#romfs
-add_custom_command(
-    OUTPUT app.romfs.o
-    COMMAND tar -H ustar -cvf romfs.tar -C "${CMAKE_CURRENT_SOURCE_DIR}/resin" .
-    COMMAND ${CMAKE_LINKER} --relocatable --format binary --output app.romfs.o romfs.tar
-    COMMAND rm -f romfs.tar
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resin"
-)
-set_source_files_properties(
-    app.romfs.o
-    PROPERTIES
-    EXTERNAL_OBJECT true
-    GENERATED true
-)
-add_library(romfs
-    app.romfs.o
-    ext/resinfs/source/romfs.c
-)
-target_include_directories(romfs
-    PUBLIC
-        ext/resinfs/include
-)
-
-target_link_libraries(ntrview romfs)
-
-endif() #WIIU
-
-if (WIIU)
-    wut_create_rpx(ntrview)
-endif()
+    target_link_libraries(ntrview romfs)
+endif() #NTRVIEW_USE_ROMFS
