@@ -138,7 +138,10 @@ static void checkGoodJpeg(jpeg& jpeg, int isTop) {
             //hack: set the last few frames as good, too. Helps getJpegForID
             //clear out old state.
             //TODO: come up with a less flaky solution for this
-            int ndx = lastGoodID - 1;
+            //did you know? C++'s % operator does not affect negative numbers.
+            //nice OOB write, that one. adding 256 as a quick fix, since
+            //this whole code is just a quick fix
+            int ndx = lastGoodID - 1 + 256;
             receivingFrames[ndx-- % 256].good = true;
             receivingFrames[ndx-- % 256].good = true;
             receivingFrames[ndx   % 256].good = true;
