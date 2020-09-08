@@ -56,6 +56,11 @@ public:
 bool Init();
 void Quit();
 void Clear(rgb colour);
+void PrepRender();
+void PrepRenderTop();
+void DoneRenderTop();
+void PrepRenderBtm();
+void DoneRenderBtm();
 void Present();
 
 std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num);

@@ -111,6 +111,12 @@ void Clear(rgb colour) {
     SDL_RenderClear(renderer);
 }
 
+void PrepRender() {};
+void PrepRenderTop() {};
+void DoneRenderTop() {};
+void PrepRenderBtm() {};
+void DoneRenderBtm() {};
+
 void Present() {
     SDL_RenderPresent(renderer);
 }

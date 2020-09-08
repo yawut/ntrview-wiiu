@@ -142,12 +142,6 @@ int main(int argc, char** argv) {
         Network::State networkState = Network::GetNetworkState();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
-        } else {
-            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-        }
-
-        if (networkState == Network::CONNECTED_STREAMING) {
             int cJPEG = Network::GetTopJPEGID();
             if (lastJPEG != cJPEG) {
                 auto jpeg = Network::GetTopJPEG(cJPEG);
@@ -170,7 +164,13 @@ int main(int argc, char** argv) {
                     printf("[Decoder] Error: %s\n", Gfx::GetError());
                 }
             }
+        }
 
+        Gfx::PrepRender();
+        Gfx::PrepRenderTop();
+
+        if (networkState == Network::CONNECTED_STREAMING) {
+            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
             Gfx::Rect dstrect = {
                 .x = (1280 - 720) / 2,
                 .y = -(1200 - 720) / 2,
@@ -181,7 +181,19 @@ int main(int argc, char** argv) {
                 .angle = 270,
             };
             topTexture.Render(dstrect);
+        } else {
+            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+        }
+
+        Gfx::DoneRenderTop();
+        Gfx::PrepRenderBtm();
+
+        if (networkState == Network::CONNECTED_STREAMING) {
+        #ifndef GFX_SDL
+            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
+        #endif
         } else if (networkState == Network::CONNECTING) {
+            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
             int x = 0;
             connecting_text.Render((Gfx::Rect) {
                 .x = x,
@@ -214,6 +226,7 @@ int main(int argc, char** argv) {
                 }
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
+            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
             connected_text.Render((Gfx::Rect) {
                 .x = 0,
                 .y = 720 - connected_text.d.h,
@@ -221,6 +234,7 @@ int main(int argc, char** argv) {
             });
         }
 
+        Gfx::DoneRenderBtm();
         Gfx::Present();
     }
 
