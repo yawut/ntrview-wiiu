@@ -3,6 +3,7 @@
 
 #include "gfx/Gfx.hpp"
 #include "common.h"
+#include "util.hpp"
 
 #ifdef __WIIU__
 #include <whb/log.h>
@@ -39,6 +40,9 @@ int main(int argc, char** argv) {
 
     #ifdef USE_RAMFS
     ramfsInit();
+    OnLeavingScope rfs_c([&] {
+        ramfsExit();
+    });
     #endif
 
     #ifdef __WIIU__
@@ -47,11 +51,25 @@ int main(int argc, char** argv) {
     devoptab_list[STD_OUT] = &dotab_stdout;
     devoptab_list[STD_ERR] = &dotab_stdout;
     #warning "Building for Wii U"
+    #ifndef GFX_SDL
+    WHBProcInit();
+    #endif
+    OnLeavingScope prc_c([&] {
+        printf("bye!\n");
+        WHBLogUdpDeinit();
+        WHBLogCafeDeinit();
+        #ifndef GFX_SDL
+        WHBProcShutdown();
+        #endif
+    });
     #endif
 
     printf("hi\n");
 
     Gfx::Init();
+    OnLeavingScope gfx_c([&] {
+        Gfx::Quit();
+    });
     tjhandle tj_handle = tjInitDecompress();
 
     printf("did init\n");
@@ -70,14 +88,12 @@ int main(int argc, char** argv) {
     Gfx::Texture topTexture(240, 400);
     if (!topTexture.valid()) {
         printf("Couldn't make texture: %s\n", Gfx::GetError());
-        Gfx::Quit();
         return 3;
     }
 
     Gfx::Texture btmTexture(240, 320);
     if (!btmTexture.valid()) {
         printf("Couldn't make texture: %s\n", Gfx::GetError());
-        Gfx::Quit();
         return 3;
     }
 
@@ -250,18 +266,6 @@ int main(int argc, char** argv) {
     //SDL_DestroyWindow(window);
 
     printf("done!\n");
-
-    Gfx::Quit();
-
-    #ifdef __WIIU__
-    printf("bye!\n");
-    WHBLogUdpDeinit();
-    WHBLogCafeDeinit();
-    #endif
-
-    #ifdef USE_RAMFS
-    ramfsExit();
-    #endif
 
     return 0;
 }
