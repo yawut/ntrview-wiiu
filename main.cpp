@@ -125,16 +125,20 @@ int main(int argc, char** argv) {
 
     int lastJPEG = 0;
 
+#ifdef GFX_SDL
     SDL_Event event;
+#endif
 #ifdef __WIIU__
     while (WHBProcIsRunning()) {
 #else
     while (1) {
 #endif
+#ifdef GFX_SDL
         SDL_PollEvent(&event);
         if (event.type == SDL_QUIT) {
             break;
         }
+#endif
         Network::State networkState = Network::GetNetworkState();
 
         if (networkState == Network::CONNECTED_STREAMING) {
