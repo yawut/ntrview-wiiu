@@ -28,13 +28,15 @@ if (WIIU)
         __WIIU__
     )
 
-    set(NTRVIEW_GFX_SDL ON)
+    set(NTRVIEW_GFX_SDL OFF)
+    set(NTRVIEW_GFX_GX2 ON)
     set(NTRVIEW_USE_RAMFS ON)
 elseif (NOT WIIU)
     find_package(Threads)
     target_link_libraries(ntrview Threads::Threads)
 
     set(NTRVIEW_GFX_SDL ON)
+    set(NTRVIEW_GFX_GX2 OFF)
     set(NTRVIEW_USE_RAMFS OFF)
 endif()
 
@@ -56,6 +58,16 @@ if (NTRVIEW_GFX_SDL)
     else()
         error("SDL2 not found!")
     endif()
+elseif (NTRVIEW_GFX_GX2)
+    target_sources(ntrview PRIVATE
+        gfx/Gfx_GX2.cpp
+    )
+    target_compile_definitions(ntrview PRIVATE
+        GFX_GX2
+    )
+
+    add_subdirectory(gfx/gx2_shaders)
+    target_link_libraries(ntrview gx2shaders)
 endif()
 
 target_link_libraries(ntrview
