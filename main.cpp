@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
                     .w = 1200,
                     .h = 720,
                 },
-                .rotation = Gfx::GFX_ROTATION_0,
+                .rotation = Gfx::GFX_ROTATION_270,
             };
             topTexture.Render(dstrect);
         } else {
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
                     .w = 640,
                     .h = 480,
                 },
-                .rotation = Gfx::GFX_ROTATION_0,
+                .rotation = Gfx::GFX_ROTATION_270,
             };
             btmTexture.Render(dstrect);
         } else if (networkState == Network::CONNECTING) {
