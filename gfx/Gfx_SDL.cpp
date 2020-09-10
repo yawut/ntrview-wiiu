@@ -86,7 +86,8 @@ void Texture::Render(Rect dest) {
         .w = dest.d.w,
         .h = dest.d.h,
     };
-    int ret = SDL_RenderCopyEx(renderer, this->sdl_tex, NULL, &dstRect, dest.angle, NULL, SDL_FLIP_NONE);
+    int angle = dest.rotation * 90;
+    int ret = SDL_RenderCopyEx(renderer, this->sdl_tex, NULL, &dstRect, angle, NULL, SDL_FLIP_NONE);
     if (ret) {
         printf("[SDL] %s\n", SDL_GetError());
     }
