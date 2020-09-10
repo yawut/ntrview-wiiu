@@ -30,6 +30,8 @@ typedef struct _ScreenSize {
 } ScreenSize;
 static ScreenSize curRCPScreenSize;
 
+bool isRenderingDRC = false;
+
 #include "Gfx_GX2_lookup_tables.inc"
 
 void Quit() {
@@ -83,8 +85,10 @@ Texture::Texture(int w, int h) {
     GX2InitTextureRegs(&this->gx2_tex);
     this->pitch = this->gx2_tex.surface.pitch * this->bypp;
 
-    GX2RCreateBuffer(&aPositionBuffer);
-    GX2RCreateBuffer(&aTexCoordBuffer);
+    GX2RCreateBuffer(&aPositionBufferTV);
+    GX2RCreateBuffer(&aTexCoordBufferTV);
+    GX2RCreateBuffer(&aPositionBufferDRC);
+    GX2RCreateBuffer(&aTexCoordBufferDRC);
 }
 
 std::span<uint8_t> Texture::Lock() {
@@ -114,8 +118,11 @@ void Texture::Render(Rect dest) {
     //Shader needs the reciprocal of the screen size to fix coordinates
     GX2SetVertexUniformReg(uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
 
+    GX2RBuffer* aPositionBuffer = (isRenderingDRC) ? &aPositionBufferDRC : &aPositionBufferTV;
+    GX2RBuffer* aTexCoordBuffer = (isRenderingDRC) ? &aTexCoordBufferDRC : &aTexCoordBufferTV;
+
     DrawCoords* aPositions = (DrawCoords*)GX2RLockBufferEx(
-        &aPositionBuffer, (GX2RResourceFlags)0
+        aPositionBuffer, (GX2RResourceFlags)0
     );
     if (!aPositions) return;
     //screen coordinates are fixed up to the usual -1.0f:1.0f in the shader
@@ -125,23 +132,23 @@ void Texture::Render(Rect dest) {
         [2] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y + dest.d.h },
         [3] = { .x = (float)dest.x,            .y = (float)dest.y + dest.d.h },
     }};
-    GX2RUnlockBufferEx(&aPositionBuffer, (GX2RResourceFlags)0);
+    GX2RUnlockBufferEx(aPositionBuffer, (GX2RResourceFlags)0);
 
     DrawCoords* aTexCoords = (DrawCoords*)GX2RLockBufferEx(
-        &aTexCoordBuffer, (GX2RResourceFlags)0
+        aTexCoordBuffer, (GX2RResourceFlags)0
     );
     if (!aTexCoords) return;
     *aTexCoords = lookup_tex_coords[dest.rotation];
-    GX2RUnlockBufferEx(&aTexCoordBuffer, (GX2RResourceFlags)0);
+    GX2RUnlockBufferEx(aTexCoordBuffer, (GX2RResourceFlags)0);
 
     GX2RSetAttributeBuffer(
-        &aPositionBuffer, aPosition, aPositionBuffer.elemSize, 0
+        aPositionBuffer, aPosition, aPositionBuffer->elemSize, 0
     );
     GX2RSetAttributeBuffer(
-        &aTexCoordBuffer, aTexCoord, aTexCoordBuffer.elemSize, 0
+        aTexCoordBuffer, aTexCoord, aTexCoordBuffer->elemSize, 0
     );
 
-    GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, aPositionBuffer.elemCount, 0, 1);
+    GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, aPositionBuffer->elemCount, 0, 1);
 }
 
 void Texture::RenderText(std::string text) {
@@ -162,6 +169,7 @@ void PrepRenderTop() {
         .w = 1.0f / (float)tvCbuf->surface.width,
         .h = 1.0f / (float)tvCbuf->surface.height,
     };
+    isRenderingDRC = false;
 }
 void DoneRenderTop() {
     WHBGfxFinishRenderTV();
@@ -173,6 +181,7 @@ void PrepRenderBtm() {
         .w = 1.0f / (float)drcCbuf->surface.width,
         .h = 1.0f / (float)drcCbuf->surface.height,
     };
+    isRenderingDRC = true;
 }
 void DoneRenderBtm() {
     WHBGfxFinishRenderDRC();
@@ -182,8 +191,20 @@ void Present() {
 }
 
 const char* GetError() {
-    #warning TODO
-    return "Not there yet";
+    return "GX2 doesn't get errors, thanks";
+}
+
+Resolution GetResolution() {
+    GX2ColorBuffer* tvCbuf = WHBGfxGetTVColourBuffer();
+    switch (tvCbuf->surface.height) {
+        case 480: return RESOLUTION_480P;
+        case 720: return RESOLUTION_720P;
+        case 1080: return RESOLUTION_1080P;
+        default: {
+            printf("[GX2] Running at unknown resolution %dp?\n", tvCbuf->surface.height);
+            return RESOLUTION_720P;
+        }
+    }
 }
 
 //number cache

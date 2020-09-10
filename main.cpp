@@ -34,6 +34,38 @@ static devoptab_t dotab_stdout = {
 
 #include "Network.hpp"
 
+Gfx::Rect configGetRect(INIReader& config, const std::string& section, const std::string& name, Gfx::Rect defaults) {
+    Gfx::Rect out;
+    out.x = config.GetInteger(section, name + "x", defaults.x);
+    out.y = config.GetInteger(section, name + "y", defaults.y);
+    out.d.w = config.GetInteger(section, name + "w", defaults.d.w);
+    out.d.h = config.GetInteger(section, name + "h", defaults.d.h);
+    int angle = config.GetInteger(section, name + "angle", -1);
+    switch (angle) {
+        case 0: {
+            out.rotation = Gfx::GFX_ROTATION_0;
+            break;
+        }
+        case 90: {
+            out.rotation = Gfx::GFX_ROTATION_90;
+            break;
+        }
+        case 180: {
+            out.rotation = Gfx::GFX_ROTATION_180;
+            break;
+        }
+        case 270: {
+            out.rotation = Gfx::GFX_ROTATION_270;
+            break;
+        }
+        default: {
+            out.rotation = defaults.rotation;
+            break;
+        }
+    }
+    return out;
+}
+
 int main(int argc, char** argv) {
     int ret;
     bool bret;
@@ -75,6 +107,8 @@ int main(int argc, char** argv) {
         printf("Graphics init error!\n");
         return 3;
     }
+    Gfx::Resolution curRes = Gfx::GetResolution();
+
     tjhandle tj_handle = tjInitDecompress();
 
     printf("did init\n");
@@ -124,6 +158,69 @@ int main(int argc, char** argv) {
     uint8_t bg_r = config.GetInteger("display", "background_r", 0x7F);
     uint8_t bg_g = config.GetInteger("display", "background_g", 0x7F);
     uint8_t bg_b = config.GetInteger("display", "background_b", 0x7F);
+
+    Gfx::Rect layout_tv[Gfx::RESOLUTION_MAX][2 /*inputs*/];
+    layout_tv[Gfx::RESOLUTION_480P][0] = configGetRect(config, "profile:0", "layout_480p_tv_top_", (Gfx::Rect) {
+        .x = 27,
+        .y = 0,
+        .d = {
+            .w = 800,
+            .h = 480,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_tv[Gfx::RESOLUTION_480P][1] = configGetRect(config, "profile:0", "layout_480p_tv_btm_", (Gfx::Rect) {
+        .d = {
+            .w = 0,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_tv[Gfx::RESOLUTION_720P][0] = configGetRect(config, "profile:0", "layout_720p_tv_top_", (Gfx::Rect) {
+        .x = 40,
+        .y = 0,
+        .d = {
+            .w = 1200,
+            .h = 720,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_tv[Gfx::RESOLUTION_720P][1] = configGetRect(config, "profile:0", "layout_720p_tv_btm_", (Gfx::Rect) {
+        .d = {
+            .w = 0,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_tv[Gfx::RESOLUTION_1080P][0] = configGetRect(config, "profile:0", "layout_1080p_tv_top_", (Gfx::Rect) {
+        .x = 60,
+        .y = 0,
+        .d = {
+            .w = 1800,
+            .h = 1080,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_tv[Gfx::RESOLUTION_1080P][1] = configGetRect(config, "profile:0", "layout_1080p_tv_btm_", (Gfx::Rect) {
+        .d = {
+            .w = 0,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    Gfx::Rect layout_drc[2];
+    layout_drc[0] = configGetRect(config, "profile:0", "layout_drc_top_", (Gfx::Rect) {
+        .d = {
+            .w = 0,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
+    layout_drc[1] = configGetRect(config, "profile:0", "layout_drc_btm_", (Gfx::Rect) {
+        .x = 107,
+        .y = 0,
+        .d = {
+            .w = 640,
+            .h = 480,
+        },
+        .rotation = Gfx::GFX_ROTATION_270,
+    });
 
 /*  Pre-render important texts */
     char numbers[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', '.' };
@@ -215,16 +312,13 @@ int main(int argc, char** argv) {
 
         if (networkState == Network::CONNECTED_STREAMING) {
             Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
-            Gfx::Rect dstrect = {
-                .x = 40,
-                .y = 0,
-                .d = {
-                    .w = 1200,
-                    .h = 720,
-                },
-                .rotation = Gfx::GFX_ROTATION_270,
-            };
-            topTexture.Render(dstrect);
+
+            if (layout_tv[curRes][0].d.w) {
+                topTexture.Render(layout_tv[curRes][0]);
+            }
+            if (layout_tv[curRes][1].d.w) {
+                btmTexture.Render(layout_tv[curRes][1]);
+            }
         } else {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
         }
@@ -236,16 +330,13 @@ int main(int argc, char** argv) {
         #ifndef GFX_SDL
             Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
         #endif
-            Gfx::Rect dstrect = {
-                .x = 107,
-                .y = 0,
-                .d = {
-                    .w = 640,
-                    .h = 480,
-                },
-                .rotation = Gfx::GFX_ROTATION_270,
-            };
-            btmTexture.Render(dstrect);
+
+            if (layout_drc[0].d.w) {
+                topTexture.Render(layout_drc[0]);
+            }
+            if (layout_drc[1].d.w) {
+                btmTexture.Render(layout_drc[1]);
+            }
         } else if (networkState == Network::CONNECTING) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
             int x = 0;

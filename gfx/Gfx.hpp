@@ -24,6 +24,13 @@ typedef enum Rotation {
     GFX_ROTATION_180 = 2,
     GFX_ROTATION_270 = 3,
 } Rotation;
+typedef enum Resolution {
+    RESOLUTION_480P  = 0,
+    RESOLUTION_720P  = 1,
+    RESOLUTION_1080P = 2,
+
+    RESOLUTION_MAX = 3,
+} Resolution;
 
 typedef struct Dimensions {
     int w;
@@ -68,14 +75,28 @@ public:
     SDL_Texture* sdl_tex = nullptr;
     bool valid() { return sdl_tex != nullptr; }
 #elif defined(GFX_GX2)
-    GX2RBuffer aPositionBuffer = {
+    GX2RBuffer aPositionBufferTV = {
         .flags = (GX2RResourceFlags) (
             GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
         ),
         .elemSize = sizeof(float) * 2,
         .elemCount = 4,
     };
-    GX2RBuffer aTexCoordBuffer = {
+    GX2RBuffer aTexCoordBufferTV = {
+        .flags = (GX2RResourceFlags) (
+            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
+        ),
+        .elemSize = sizeof(float) * 2,
+        .elemCount = 4,
+    };
+    GX2RBuffer aPositionBufferDRC = {
+        .flags = (GX2RResourceFlags) (
+            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
+        ),
+        .elemSize = sizeof(float) * 2,
+        .elemCount = 4,
+    };
+    GX2RBuffer aTexCoordBufferDRC = {
         .flags = (GX2RResourceFlags) (
             GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
         ),
@@ -114,5 +135,6 @@ std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num);
 void CacheNumber(char num);
 
 const char* GetError();
+Resolution GetResolution();
 
 } //namespace Gfx

@@ -126,6 +126,10 @@ const char* GetError() {
     return SDL_GetError();
 }
 
+Resolution GetResolution() {
+    return RESOLUTION_720P;
+}
+
 //number cache
 std::unordered_map<char, Texture> numbers_cache;
 
