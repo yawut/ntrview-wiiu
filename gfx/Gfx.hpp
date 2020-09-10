@@ -18,6 +18,13 @@
 
 namespace Gfx {
 
+typedef enum Rotation {
+    GFX_ROTATION_0 = 0,
+    GFX_ROTATION_90 = 1,
+    GFX_ROTATION_180 = 2,
+    GFX_ROTATION_270 = 3,
+} Rotation;
+
 typedef struct Dimensions {
     int w;
     int h;
@@ -26,7 +33,7 @@ typedef struct Rect {
     int x;
     int y;
     Dimensions d;
-    int angle = 0;
+    Rotation rotation = GFX_ROTATION_0;
 } Rect;
 typedef struct rgb {
     uint8_t r;

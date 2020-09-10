@@ -15,6 +15,7 @@ namespace Gfx {
 
 static WHBGfxShaderGroup shader;
 static int aPosition, aTexCoord;
+static GX2UniformVar* uRCPScreenSize;
 
 typedef struct _DrawCoords {
     struct {
@@ -22,6 +23,14 @@ typedef struct _DrawCoords {
         float y;
     } coords[4];
 } DrawCoords;
+
+typedef struct _ScreenSize {
+    float w;
+    float h;
+} ScreenSize;
+static ScreenSize curRCPScreenSize;
+
+#include "Gfx_GX2_lookup_tables.inc"
 
 void Quit() {
     WHBGfxShutdown();
@@ -31,8 +40,9 @@ bool Init() {
     WHBGfxInit();
 
     if (!WHBGfxLoadGFDShaderGroup(&shader, 0, main_shader)) {
+//#ifndef NDEBUG
         printf("[GX2] Couldn't parse shader!\n");
-        Quit();
+//#endif
         return false;
     }
 
@@ -41,6 +51,14 @@ bool Init() {
     WHBGfxInitShaderAttribute(&shader, "aPosition", aPosition, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
     aTexCoord = buffer++;
     WHBGfxInitShaderAttribute(&shader, "aTexCoord", aTexCoord, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+
+    uRCPScreenSize = GX2GetVertexUniformVar(shader.vertexShader, "uRCPScreenSize");
+    if (!uRCPScreenSize) {
+//#ifndef NDEBUG
+        printf("[GX2] Couldn't find uRCPScreenSize!\n");
+//#endif
+        return false;
+    }
 
     WHBGfxInitFetchShader(&shader);
 
@@ -66,28 +84,7 @@ Texture::Texture(int w, int h) {
     this->pitch = this->gx2_tex.surface.pitch * this->bypp;
 
     GX2RCreateBuffer(&aPositionBuffer);
-    DrawCoords* aPositions = (DrawCoords*)GX2RLockBufferEx(
-        &aPositionBuffer, (GX2RResourceFlags)0
-    );
-    *aPositions = (DrawCoords) { .coords = {
-        [0] = { .x = -1.0f, .y =  1.0f },
-        [1] = { .x =  1.0f, .y =  1.0f },
-        [2] = { .x =  1.0f, .y = -1.0f },
-        [3] = { .x = -1.0f, .y = -1.0f },
-    }};
-    GX2RUnlockBufferEx(&aPositionBuffer, (GX2RResourceFlags)0);
-
     GX2RCreateBuffer(&aTexCoordBuffer);
-    DrawCoords* aTexCoords = (DrawCoords*)GX2RLockBufferEx(
-        &aTexCoordBuffer, (GX2RResourceFlags)0
-    );
-    *aTexCoords = (DrawCoords) { .coords = {
-        [0] = { .x =  0.0f, .y =  0.0f },
-        [1] = { .x =  1.0f, .y =  0.0f },
-        [2] = { .x =  1.0f, .y =  1.0f },
-        [3] = { .x =  0.0f, .y =  1.0f },
-    }};
-    GX2RUnlockBufferEx(&aTexCoordBuffer, (GX2RResourceFlags)0);
 }
 
 std::span<uint8_t> Texture::Lock() {
@@ -114,6 +111,29 @@ void Texture::Render(Rect dest) {
     GX2SetPixelSampler(&this->sampler, 0);
     GX2SetPixelTexture(&this->gx2_tex, 0);
 
+    //Shader needs the reciprocal of the screen size to fix coordinates
+    GX2SetVertexUniformReg(uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+
+    DrawCoords* aPositions = (DrawCoords*)GX2RLockBufferEx(
+        &aPositionBuffer, (GX2RResourceFlags)0
+    );
+    if (!aPositions) return;
+    //screen coordinates are fixed up to the usual -1.0f:1.0f in the shader
+    *aPositions = (DrawCoords) { .coords = {
+        [0] = { .x = (float)dest.x,            .y = (float)dest.y            },
+        [1] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y            },
+        [2] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y + dest.d.h },
+        [3] = { .x = (float)dest.x,            .y = (float)dest.y + dest.d.h },
+    }};
+    GX2RUnlockBufferEx(&aPositionBuffer, (GX2RResourceFlags)0);
+
+    DrawCoords* aTexCoords = (DrawCoords*)GX2RLockBufferEx(
+        &aTexCoordBuffer, (GX2RResourceFlags)0
+    );
+    if (!aTexCoords) return;
+    *aTexCoords = lookup_tex_coords[dest.rotation];
+    GX2RUnlockBufferEx(&aTexCoordBuffer, (GX2RResourceFlags)0);
+
     GX2RSetAttributeBuffer(
         &aPositionBuffer, aPosition, aPositionBuffer.elemSize, 0
     );
@@ -137,12 +157,22 @@ void PrepRender() {
 }
 void PrepRenderTop() {
     WHBGfxBeginRenderTV();
+    GX2ColorBuffer* tvCbuf = WHBGfxGetTVColourBuffer();
+    curRCPScreenSize = (ScreenSize) {
+        .w = 1.0f / (float)tvCbuf->surface.width,
+        .h = 1.0f / (float)tvCbuf->surface.height,
+    };
 }
 void DoneRenderTop() {
     WHBGfxFinishRenderTV();
 }
 void PrepRenderBtm() {
     WHBGfxBeginRenderDRC();
+    GX2ColorBuffer* drcCbuf = WHBGfxGetDRCColourBuffer();
+    curRCPScreenSize = (ScreenSize) {
+        .w = 1.0f / (float)drcCbuf->surface.width,
+        .h = 1.0f / (float)drcCbuf->surface.height,
+    };
 }
 void DoneRenderBtm() {
     WHBGfxFinishRenderDRC();

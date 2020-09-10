@@ -36,6 +36,7 @@ static devoptab_t dotab_stdout = {
 
 int main(int argc, char** argv) {
     int ret;
+    bool bret;
     (void)argc, (void)argv;
 
     #ifdef USE_RAMFS
@@ -66,10 +67,14 @@ int main(int argc, char** argv) {
 
     printf("hi\n");
 
-    Gfx::Init();
+    bret = Gfx::Init();
     OnLeavingScope gfx_c([&] {
         Gfx::Quit();
     });
+    if (!bret) {
+        printf("Graphics init error!\n");
+        return 3;
+    }
     tjhandle tj_handle = tjInitDecompress();
 
     printf("did init\n");
@@ -211,13 +216,13 @@ int main(int argc, char** argv) {
         if (networkState == Network::CONNECTED_STREAMING) {
             Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
             Gfx::Rect dstrect = {
-                .x = (1280 - 720) / 2,
-                .y = -(1200 - 720) / 2,
+                .x = 40,
+                .y = 0,
                 .d = {
-                    .w = 720,
-                    .h = 1200,
+                    .w = 1200,
+                    .h = 720,
                 },
-                .angle = 270,
+                .rotation = Gfx::GFX_ROTATION_0,
             };
             topTexture.Render(dstrect);
         } else {
@@ -232,13 +237,13 @@ int main(int argc, char** argv) {
             Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
         #endif
             Gfx::Rect dstrect = {
-                .x = (1280 - 720) / 2,
-                .y = -(1200 - 720) / 2,
+                .x = 107,
+                .y = 0,
                 .d = {
-                    .w = 720,
-                    .h = 1200,
+                    .w = 640,
+                    .h = 480,
                 },
-                .angle = 270,
+                .rotation = Gfx::GFX_ROTATION_0,
             };
             btmTexture.Render(dstrect);
         } else if (networkState == Network::CONNECTING) {
