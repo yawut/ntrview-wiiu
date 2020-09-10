@@ -139,7 +139,8 @@ int main(int argc, char** argv) {
 
     printf("gonna start rendering\n");
 
-    int lastJPEG = 0;
+    int lastTopJPEG = 0;
+    int lastBtmJPEG = 0;
 
 #ifdef GFX_SDL
     SDL_Event event;
@@ -158,9 +159,9 @@ int main(int argc, char** argv) {
         Network::State networkState = Network::GetNetworkState();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            int cJPEG = Network::GetTopJPEGID();
-            if (lastJPEG != cJPEG) {
-                auto jpeg = Network::GetTopJPEG(cJPEG);
+            int cTopJPEG = Network::GetTopJPEGID();
+            if (lastTopJPEG != cTopJPEG) {
+                auto jpeg = Network::GetTopJPEG(cTopJPEG);
 
                 auto pixels = topTexture.Lock();
                 if (topTexture.locked && !pixels.empty()) {
@@ -175,7 +176,29 @@ int main(int argc, char** argv) {
                     if (ret) {
                         printf("[Decoder] %s\n", tjGetErrorStr());
                     }
-                    lastJPEG = cJPEG;
+                    lastTopJPEG = cTopJPEG;
+                } else {
+                    printf("[Decoder] Error: %s\n", Gfx::GetError());
+                }
+            }
+            int cBtmJPEG = Network::GetBtmJPEGID();
+            if (lastBtmJPEG != cBtmJPEG) {
+                auto jpeg = Network::GetBtmJPEG(cBtmJPEG);
+
+                auto pixels = btmTexture.Lock();
+                if (btmTexture.locked && !pixels.empty()) {
+                    ret = tjDecompress2(tj_handle,
+                        jpeg.data(), jpeg.size(), pixels.data(),
+                        btmTexture.d.w, btmTexture.pitch, 0,
+                        TJPF_RGBA, 0
+                    );
+
+                    btmTexture.Unlock(pixels);
+
+                    if (ret) {
+                        printf("[Decoder] %s\n", tjGetErrorStr());
+                    }
+                    lastBtmJPEG = cBtmJPEG;
                 } else {
                     printf("[Decoder] Error: %s\n", Gfx::GetError());
                 }
@@ -208,6 +231,16 @@ int main(int argc, char** argv) {
         #ifndef GFX_SDL
             Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
         #endif
+            Gfx::Rect dstrect = {
+                .x = (1280 - 720) / 2,
+                .y = -(1200 - 720) / 2,
+                .d = {
+                    .w = 720,
+                    .h = 1200,
+                },
+                .angle = 270,
+            };
+            btmTexture.Render(dstrect);
         } else if (networkState == Network::CONNECTING) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
             int x = 0;
