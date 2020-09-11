@@ -2,6 +2,7 @@
 #include <INIReader.h>
 
 #include "gfx/Gfx.hpp"
+#include "gfx/font/Text.hpp"
 #include "common.h"
 #include "util.hpp"
 
@@ -108,6 +109,15 @@ int main(int argc, char** argv) {
         return 3;
     }
     Gfx::Resolution curRes = Gfx::GetResolution();
+
+    bret = Text::Init();
+    OnLeavingScope txt_c([&] {
+        Text::Quit();
+    });
+    if (!bret) {
+        printf("Text init error!\n");
+        return 3;
+    }
 
     tjhandle tj_handle = tjInitDecompress();
 
@@ -235,6 +245,8 @@ int main(int argc, char** argv) {
     Gfx::Texture attempt_text(", attempt ");
     Gfx::Texture connected_text("Connected.");
 
+    Text::Text test_text("this is a test!");
+
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, host, priority, priorityFactor, jpegQuality, QoS);
     printf("did network\n");
@@ -321,6 +333,7 @@ int main(int argc, char** argv) {
             }
         } else {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+            test_text.Render(10, 10);
         }
 
         Gfx::DoneRenderTop();
@@ -339,6 +352,9 @@ int main(int argc, char** argv) {
             }
         } else if (networkState == Network::CONNECTING) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+
+            test_text.Render(10, 10);
+
             int x = 0;
             connecting_text.Render((Gfx::Rect) {
                 .x = x,

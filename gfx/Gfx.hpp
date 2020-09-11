@@ -32,6 +32,11 @@ typedef enum Resolution {
     RESOLUTION_MAX = 3,
 } Resolution;
 
+typedef enum DrawMode {
+    DRAWMODE_TEXTURE_RGB = 0,
+    DRAWMODE_TEXT,
+} DrawMode;
+
 typedef struct Dimensions {
     int w;
     int h;
@@ -56,16 +61,18 @@ typedef struct rgb {
 class Texture {
 public:
     Dimensions d;
-    const int bpp = 32;
-    const int bypp = 4;
+    int bpp = 32;
+    int bypp = 4;
     void Render(Rect dest);
+
+    DrawMode mode;
 
     bool locked = false;
     int pitch;
     std::span<uint8_t> Lock();
     void Unlock(std::span<uint8_t>& pixels);
 
-    Texture(int w, int h);
+    Texture(int w, int h, DrawMode mode = DRAWMODE_TEXTURE_RGB);
     Texture() {};
 
     Texture(std::string text);

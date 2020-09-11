@@ -61,13 +61,16 @@ if (NTRVIEW_GFX_SDL)
 elseif (NTRVIEW_GFX_GX2)
     target_sources(ntrview PRIVATE
         gfx/Gfx_GX2.cpp
+        gfx/font/Text_FreeType2.cpp
     )
     target_compile_definitions(ntrview PRIVATE
-        GFX_GX2
+        GFX_GX2 TXT_FT2
     )
 
+    pkg_check_modules(freetype2 REQUIRED IMPORTED_TARGET freetype2)
+
     add_subdirectory(gfx/gx2_shaders)
-    target_link_libraries(ntrview gx2shaders)
+    target_link_libraries(ntrview gx2shaders PkgConfig::freetype2)
 endif()
 
 target_link_libraries(ntrview

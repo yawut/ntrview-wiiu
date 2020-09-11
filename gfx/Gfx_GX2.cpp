@@ -13,9 +13,16 @@
 
 namespace Gfx {
 
-static WHBGfxShaderGroup shader;
-static int aPosition, aTexCoord;
-static GX2UniformVar* uRCPScreenSize;
+static struct {
+    WHBGfxShaderGroup shader;
+    int aPosition, aTexCoord;
+    GX2UniformVar* uRCPScreenSize;
+} shader_main;
+static struct {
+    WHBGfxShaderGroup shader;
+    int aPosition, aTexCoord;
+    GX2UniformVar* uRCPScreenSize;
+} shader_text;
 
 typedef struct _DrawCoords {
     struct {
@@ -41,33 +48,67 @@ void Quit() {
 bool Init() {
     WHBGfxInit();
 
-    if (!WHBGfxLoadGFDShaderGroup(&shader, 0, main_shader)) {
-//#ifndef NDEBUG
+    //init main shader
+    if (!WHBGfxLoadGFDShaderGroup(&shader_main.shader, 0, main_shader)) {
         printf("[GX2] Couldn't parse shader!\n");
-//#endif
         return false;
     }
 
     int buffer = 0;
-    aPosition = buffer++;
-    WHBGfxInitShaderAttribute(&shader, "aPosition", aPosition, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
-    aTexCoord = buffer++;
-    WHBGfxInitShaderAttribute(&shader, "aTexCoord", aTexCoord, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+    shader_main.aPosition = buffer++;
+    WHBGfxInitShaderAttribute(&shader_main.shader, "aPosition", shader_main.aPosition, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+    shader_main.aTexCoord = buffer++;
+    WHBGfxInitShaderAttribute(&shader_main.shader, "aTexCoord", shader_main.aTexCoord, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
 
-    uRCPScreenSize = GX2GetVertexUniformVar(shader.vertexShader, "uRCPScreenSize");
-    if (!uRCPScreenSize) {
-//#ifndef NDEBUG
+    shader_main.uRCPScreenSize = GX2GetVertexUniformVar(shader_main.shader.vertexShader, "uRCPScreenSize");
+    if (!shader_main.uRCPScreenSize) {
         printf("[GX2] Couldn't find uRCPScreenSize!\n");
-//#endif
         return false;
     }
 
-    WHBGfxInitFetchShader(&shader);
+    WHBGfxInitFetchShader(&shader_main.shader);
+
+    //init text shader
+    if (!WHBGfxLoadGFDShaderGroup(&shader_text.shader, 0, text_shader)) {
+        printf("[GX2] Couldn't parse shader!\n");
+        return false;
+    }
+
+    buffer = 0;
+    shader_text.aPosition = buffer++;
+    WHBGfxInitShaderAttribute(&shader_text.shader, "aPosition", shader_text.aPosition, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+    shader_text.aTexCoord = buffer++;
+    WHBGfxInitShaderAttribute(&shader_text.shader, "aTexCoord", shader_text.aTexCoord, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+
+    shader_text.uRCPScreenSize = GX2GetVertexUniformVar(shader_text.shader.vertexShader, "uRCPScreenSize");
+    if (!shader_text.uRCPScreenSize) {
+        printf("[GX2] Couldn't find uRCPScreenSize!\n");
+        return false;
+    }
+
+    WHBGfxInitFetchShader(&shader_text.shader);
 
     return true;
 }
 
-Texture::Texture(int w, int h) {
+Texture::Texture(int w, int h, DrawMode mode) :
+    mode(mode) {
+
+    switch (mode) {
+        case DRAWMODE_TEXTURE_RGB: {
+            this->gx2_tex.surface.format = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
+            this->bpp = 32;
+            this->bypp = 4;
+            break;
+        }
+        case DRAWMODE_TEXT: {
+            this->gx2_tex.surface.format = GX2_SURFACE_FORMAT_UNORM_R8;
+            this->bpp = 8;
+            this->bypp = 1;
+            break;
+        }
+    }
+
     GX2InitSampler(&this->sampler,
         GX2_TEX_CLAMP_MODE_WRAP, GX2_TEX_XY_FILTER_MODE_POINT
     );
@@ -111,15 +152,8 @@ void Texture::Unlock(std::span<uint8_t>& pixels) {
 void Texture::Render(Rect dest) {
     GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_ALWAYS);
 
-    GX2SetFetchShader(&shader.fetchShader);
-    GX2SetVertexShader(shader.vertexShader);
-    GX2SetPixelShader(shader.pixelShader);
-
     GX2SetPixelSampler(&this->sampler, 0);
     GX2SetPixelTexture(&this->gx2_tex, 0);
-
-    //Shader needs the reciprocal of the screen size to fix coordinates
-    GX2SetVertexUniformReg(uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
 
     GX2RBuffer* aPositionBuffer = (isRenderingDRC) ? &aPositionBufferDRC : &aPositionBufferTV;
     GX2RBuffer* aTexCoordBuffer = (isRenderingDRC) ? &aTexCoordBufferDRC : &aTexCoordBufferTV;
@@ -144,12 +178,40 @@ void Texture::Render(Rect dest) {
     *aTexCoords = lookup_tex_coords[dest.rotation];
     GX2RUnlockBufferEx(aTexCoordBuffer, (GX2RResourceFlags)0);
 
-    GX2RSetAttributeBuffer(
-        aPositionBuffer, aPosition, aPositionBuffer->elemSize, 0
-    );
-    GX2RSetAttributeBuffer(
-        aTexCoordBuffer, aTexCoord, aTexCoordBuffer->elemSize, 0
-    );
+    switch (this->mode) {
+        case DRAWMODE_TEXTURE_RGB: {
+            GX2SetFetchShader(&shader_main.shader.fetchShader);
+            GX2SetVertexShader(shader_main.shader.vertexShader);
+            GX2SetPixelShader(shader_main.shader.pixelShader);
+
+            GX2RSetAttributeBuffer(
+                aPositionBuffer, shader_main.aPosition, aPositionBuffer->elemSize, 0
+            );
+            GX2RSetAttributeBuffer(
+                aTexCoordBuffer, shader_main.aTexCoord, aTexCoordBuffer->elemSize, 0
+            );
+
+            //Shader needs the reciprocal of the screen size to fix coordinates
+            GX2SetVertexUniformReg(shader_main.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+            break;
+        }
+        case DRAWMODE_TEXT: {
+            GX2SetFetchShader(&shader_text.shader.fetchShader);
+            GX2SetVertexShader(shader_text.shader.vertexShader);
+            GX2SetPixelShader(shader_text.shader.pixelShader);
+
+            GX2RSetAttributeBuffer(
+                aPositionBuffer, shader_text.aPosition, aPositionBuffer->elemSize, 0
+            );
+            GX2RSetAttributeBuffer(
+                aTexCoordBuffer, shader_text.aTexCoord, aTexCoordBuffer->elemSize, 0
+            );
+
+            //Shader needs the reciprocal of the screen size to fix coordinates
+            GX2SetVertexUniformReg(shader_text.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+            break;
+        }
+    }
 
     GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, aPositionBuffer->elemCount, 0, 1);
 }
