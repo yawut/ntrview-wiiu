@@ -90,6 +90,9 @@ Texture::Texture(int w, int h) {
     GX2RCreateBuffer(&aPositionBufferDRC);
     GX2RCreateBuffer(&aTexCoordBufferDRC);
 }
+Texture::Texture(std::string text) {
+    #warning TODO
+}
 
 std::span<uint8_t> Texture::Lock() {
     uint8_t* surface = (uint8_t*)GX2RLockSurfaceEx(&this->gx2_tex.surface, 0, (GX2RResourceFlags)0);
@@ -149,10 +152,6 @@ void Texture::Render(Rect dest) {
     );
 
     GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, aPositionBuffer->elemCount, 0, 1);
-}
-
-void Texture::RenderText(std::string text) {
-    #warning TODO
 }
 
 void Clear(rgb colour) {
@@ -218,12 +217,8 @@ std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num) {
     return std::optional<std::reference_wrapper<Texture>>(numbers_cache[num]);
 }
 void CacheNumber(char num) {
-    auto num_tex = numbers_cache.try_emplace(num);
-    auto& tex = num_tex.first->second;
-    if (!num_tex.second && tex.valid()) return;
-
     std::string str(&num, 1);
-    tex.RenderText(str);
+    numbers_cache.try_emplace(num /*key*/, str /*Texture(str)*/);
 }
 
 } //namespace Gfx

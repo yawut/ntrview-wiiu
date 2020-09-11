@@ -68,8 +68,7 @@ public:
     Texture(int w, int h);
     Texture() {};
 
-    void RenderText(std::string text);
-    Texture(std::string text) { RenderText(text); }
+    Texture(std::string text);
 
 #if defined(GFX_SDL)
     SDL_Texture* sdl_tex = nullptr;

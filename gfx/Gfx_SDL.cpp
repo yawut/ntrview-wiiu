@@ -63,6 +63,19 @@ Texture::Texture(int w, int h) {
     int access;
     SDL_QueryTexture(this->sdl_tex, &format, &access, &this->d.w, &this->d.h);
 }
+Texture::Texture(std::string text) {
+    SDL_Surface* text_surf = TTF_RenderUTF8_Blended(font,
+        text.c_str(),
+        (SDL_Color) { 0xFF, 0xFF, 0xFF }
+    );
+    this->sdl_tex = SDL_CreateTextureFromSurface(renderer, text_surf);
+    SDL_FreeSurface(text_surf);
+    text_surf = NULL;
+
+    Uint32 format;
+    int access;
+    SDL_QueryTexture(this->sdl_tex, &format, &access, &this->d.w, &this->d.h);
+}
 
 std::span<uint8_t> Texture::Lock() {
     void* pixels;
@@ -91,20 +104,6 @@ void Texture::Render(Rect dest) {
     if (ret) {
         printf("[SDL] %s\n", SDL_GetError());
     }
-}
-
-void Texture::RenderText(std::string text) {
-    SDL_Surface* text_surf = TTF_RenderUTF8_Blended(font,
-        text.c_str(),
-        (SDL_Color) { 0xFF, 0xFF, 0xFF }
-    );
-    this->sdl_tex = SDL_CreateTextureFromSurface(renderer, text_surf);
-    SDL_FreeSurface(text_surf);
-    text_surf = NULL;
-
-    Uint32 format;
-    int access;
-    SDL_QueryTexture(this->sdl_tex, &format, &access, &this->d.w, &this->d.h);
 }
 
 void Clear(rgb colour) {
@@ -141,12 +140,8 @@ std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num) {
     return std::optional<std::reference_wrapper<Texture>>(numbers_cache[num]);
 }
 void CacheNumber(char num) {
-    auto num_tex = numbers_cache.try_emplace(num);
-    auto& tex = num_tex.first->second;
-    if (!num_tex.second && tex.valid()) return;
-
     std::string str(&num, 1);
-    tex.RenderText(str);
+    numbers_cache.try_emplace(num /*key*/, str /*Texture(str)*/);
 }
 
 } //namespace Gfx
