@@ -35,6 +35,13 @@ static devoptab_t dotab_stdout = {
 
 #include "Network.hpp"
 
+const static Gfx::rgb builtin_bg = {
+    .r = 0x20,
+    .g = 0x00,
+    .b = 0x27,
+};
+static Gfx::rgb user_bg = builtin_bg;
+
 Gfx::Rect configGetRect(INIReader& config, const std::string& section, const std::string& name, Gfx::Rect defaults) {
     Gfx::Rect out;
     out.x = config.GetInteger(section, name + "x", defaults.x);
@@ -127,7 +134,7 @@ int main(int argc, char** argv) {
     Text::Text loading_text("Now Loading");
     Gfx::PrepRender();
     Gfx::PrepRenderBtm();
-    Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+    Gfx::Clear(user_bg);
     loading_text.Render(loading_text.baseline_y, 480 - loading_text.d.h);
     Gfx::DoneRenderBtm();
     Gfx::Present();
@@ -164,9 +171,9 @@ int main(int argc, char** argv) {
     uint8_t priorityFactor = config.GetInteger("3ds", "priorityFactor", 5);
     uint8_t jpegQuality    = config.GetInteger("3ds", "jpegQuality", 80);
     uint8_t QoS            = config.GetInteger("3ds", "QoS", 18);
-    uint8_t bg_r = config.GetInteger("display", "background_r", 0x7F);
-    uint8_t bg_g = config.GetInteger("display", "background_g", 0x7F);
-    uint8_t bg_b = config.GetInteger("display", "background_b", 0x7F);
+    user_bg.r = config.GetInteger("display", "background_r", builtin_bg.r);
+    user_bg.r = config.GetInteger("display", "background_g", builtin_bg.g);
+    user_bg.r = config.GetInteger("display", "background_b", builtin_bg.b);
 
     Gfx::Rect layout_tv[Gfx::RESOLUTION_MAX][2 /*inputs*/];
     layout_tv[Gfx::RESOLUTION_480P][0] = configGetRect(config, "profile:0", "layout_480p_tv_top_", (Gfx::Rect) {
@@ -314,7 +321,7 @@ int main(int argc, char** argv) {
         Gfx::PrepRenderTop();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
+            Gfx::Clear(user_bg);
 
             if (layout_tv[curRes][0].d.w) {
                 topTexture.Render(layout_tv[curRes][0]);
@@ -323,7 +330,7 @@ int main(int argc, char** argv) {
                 btmTexture.Render(layout_tv[curRes][1]);
             }
         } else {
-            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+            Gfx::Clear(builtin_bg);
         }
 
         Gfx::DoneRenderTop();
@@ -331,7 +338,7 @@ int main(int argc, char** argv) {
 
         if (networkState == Network::CONNECTED_STREAMING) {
         #ifndef GFX_SDL
-            Gfx::Clear((Gfx::rgb) { .r = bg_r, .g = bg_g, .b = bg_b });
+            Gfx::Clear(user_bg);
         #endif
 
             if (layout_drc[0].d.w) {
@@ -341,7 +348,7 @@ int main(int argc, char** argv) {
                 btmTexture.Render(layout_drc[1]);
             }
         } else if (networkState == Network::CONNECTING) {
-            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+            Gfx::Clear(builtin_bg);
 
             int x = connecting_text.baseline_y;
             connecting_text.Render(x, 480 - connecting_text.d.h);
@@ -358,7 +365,7 @@ int main(int argc, char** argv) {
                 x += attempts_num.d.w;
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
-            Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
+            Gfx::Clear(builtin_bg);
             connected_text.Render(connected_text.baseline_y, 480 - connected_text.d.h);
         }
 
