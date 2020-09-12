@@ -172,8 +172,8 @@ int main(int argc, char** argv) {
     uint8_t jpegQuality    = config.GetInteger("3ds", "jpegQuality", 80);
     uint8_t QoS            = config.GetInteger("3ds", "QoS", 18);
     user_bg.r = config.GetInteger("display", "background_r", builtin_bg.r);
-    user_bg.r = config.GetInteger("display", "background_g", builtin_bg.g);
-    user_bg.r = config.GetInteger("display", "background_b", builtin_bg.b);
+    user_bg.g = config.GetInteger("display", "background_g", builtin_bg.g);
+    user_bg.b = config.GetInteger("display", "background_b", builtin_bg.b);
 
     Gfx::Rect layout_tv[Gfx::RESOLUTION_MAX][2 /*inputs*/];
     layout_tv[Gfx::RESOLUTION_480P][0] = configGetRect(config, "profile:0", "layout_480p_tv_top_", (Gfx::Rect) {
