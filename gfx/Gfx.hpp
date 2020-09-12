@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <span>
+#include <vector>
 
 #ifdef GFX_SDL
 #include <SDL.h>
@@ -75,40 +76,13 @@ public:
     Texture(int w, int h, DrawMode mode = DRAWMODE_TEXTURE_RGB);
     Texture() {};
 
+#if defined(GFX_SDL)
+    //TODO move this to Text_SDLTTF
     Texture(std::string text);
 
-#if defined(GFX_SDL)
     SDL_Texture* sdl_tex = nullptr;
     bool valid() { return sdl_tex != nullptr; }
 #elif defined(GFX_GX2)
-    GX2RBuffer aPositionBufferTV = {
-        .flags = (GX2RResourceFlags) (
-            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
-        ),
-        .elemSize = sizeof(float) * 2,
-        .elemCount = 4,
-    };
-    GX2RBuffer aTexCoordBufferTV = {
-        .flags = (GX2RResourceFlags) (
-            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
-        ),
-        .elemSize = sizeof(float) * 2,
-        .elemCount = 4,
-    };
-    GX2RBuffer aPositionBufferDRC = {
-        .flags = (GX2RResourceFlags) (
-            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
-        ),
-        .elemSize = sizeof(float) * 2,
-        .elemCount = 4,
-    };
-    GX2RBuffer aTexCoordBufferDRC = {
-        .flags = (GX2RResourceFlags) (
-            GX2R_RESOURCE_BIND_VERTEX_BUFFER | GX2R_RESOURCE_USAGE_CPU_WRITE
-        ),
-        .elemSize = sizeof(float) * 2,
-        .elemCount = 4,
-    };
     GX2Sampler sampler;
     GX2Texture gx2_tex = {
         .surface = (GX2Surface) {

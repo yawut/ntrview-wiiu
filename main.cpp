@@ -124,13 +124,9 @@ int main(int argc, char** argv) {
     printf("did init\n");
 
 /*  Show loading text */
-    Gfx::Texture loading_text("Now Loading");
+    Text::Text loading_text("Now Loading");
     Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-    loading_text.Render((Gfx::Rect) {
-        .x = 0,
-        .y = 720 - loading_text.d.h,
-        .d = loading_text.d,
-    });
+    loading_text.Render(0, 720 - loading_text.d.h);
     Gfx::Present();
 
 /*  Allocate textures for the received frames */
@@ -232,18 +228,12 @@ int main(int argc, char** argv) {
         .rotation = Gfx::GFX_ROTATION_270,
     });
 
-/*  Pre-render important texts */
-    char numbers[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', '.' };
-    for (char num : numbers) {
-        Gfx::CacheNumber(num);
-    }
-
     std::string connecting_text_str("Connecting to ");
     connecting_text_str.append(host);
-    Gfx::Texture connecting_text(connecting_text_str);
+    Text::Text connecting_text(connecting_text_str);
 
-    Gfx::Texture attempt_text(", attempt ");
-    Gfx::Texture connected_text("Connected.");
+    Text::Text attempt_text(", attempt ");
+    Text::Text connected_text("Connected.");
 
     Text::Text test_text("this is a test!");
 
@@ -333,7 +323,7 @@ int main(int argc, char** argv) {
             }
         } else {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-            test_text.Render(10, 10);
+            test_text.Render(10, 100);
         }
 
         Gfx::DoneRenderTop();
@@ -353,46 +343,25 @@ int main(int argc, char** argv) {
         } else if (networkState == Network::CONNECTING) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
 
-            test_text.Render(10, 10);
+            test_text.Render(10, 100);
 
             int x = 0;
-            connecting_text.Render((Gfx::Rect) {
-                .x = x,
-                .y = 720 - connecting_text.d.h,
-                .d = connecting_text.d,
-            });
+            connecting_text.Render(x, 480 - connecting_text.d.h);
             x += connecting_text.d.w;
 
             int connect_attempts = Network::GetConnectionAttempts();
             if (connect_attempts > 0) {
-                attempt_text.Render((Gfx::Rect) {
-                    .x = x,
-                    .y = 720 - attempt_text.d.h,
-                    .d = attempt_text.d,
-                });
+                attempt_text.Render(x, 480 - attempt_text.d.h);
                 x += attempt_text.d.w;
 
                 std::string attempts_num_str = std::to_string(connect_attempts);
-                for (auto c : attempts_num_str) {
-                    auto num_tex_o = Gfx::GetCachedNumber(c);
-                    if (!num_tex_o) continue;
-                    auto& num_tex = num_tex_o->get();
-
-                    num_tex.Render((Gfx::Rect) {
-                        .x = x,
-                        .y = 720 - num_tex.d.h,
-                        .d = num_tex.d,
-                    });
-                    x += num_tex.d.w;
-                }
+                Text::Text attempts_num(attempts_num_str);
+                attempts_num.Render(x, 480 - attempts_num.d.h);
+                x += attempts_num.d.w;
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-            connected_text.Render((Gfx::Rect) {
-                .x = 0,
-                .y = 720 - connected_text.d.h,
-                .d = connected_text.d,
-            });
+            connected_text.Render(0, 480 - connected_text.d.h);
         }
 
         Gfx::DoneRenderBtm();

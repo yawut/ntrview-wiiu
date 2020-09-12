@@ -43,6 +43,7 @@ endif()
 if (NTRVIEW_GFX_SDL)
     target_sources(ntrview PRIVATE
         gfx/Gfx_SDL.cpp
+        gfx/font/Text_SDLTTF.cpp
     )
     target_compile_definitions(ntrview PRIVATE
         GFX_SDL

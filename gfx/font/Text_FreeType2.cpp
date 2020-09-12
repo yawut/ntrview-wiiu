@@ -8,10 +8,12 @@
 
 namespace Text {
 
+const static int PIXEL_HEIGHT = 48;
+
 static FT_Library library;
 static FT_Face opensans;
 
-static std::unordered_map<FT_UInt, Gfx::Texture> glyph_cache;
+static std::unordered_map<FT_UInt, std::pair<Gfx::Rect, Gfx::Texture>> glyph_cache;
 
 static bool cacheNewGlyph(FT_UInt glyph_index) {
     auto error = FT_Load_Glyph(opensans, glyph_index, FT_LOAD_DEFAULT | FT_LOAD_RENDER);
@@ -22,16 +24,28 @@ static bool cacheNewGlyph(FT_UInt glyph_index) {
 
     auto map_tex = glyph_cache.try_emplace(
         glyph_index,
-        opensans->glyph->bitmap.width,
-        opensans->glyph->bitmap.rows,
-        Gfx::DRAWMODE_TEXT
+        std::piecewise_construct,
+        std::forward_as_tuple((Gfx::Rect) {
+            .x =  opensans->glyph->bitmap_left, //x
+            .y = -opensans->glyph->bitmap_top, //y
+            .d = {
+                .w = opensans->glyph->advance.x >> 6, //w
+                .h = opensans->glyph->advance.y >> 6, //h
+            },
+        }),
+        std::forward_as_tuple(
+            opensans->glyph->bitmap.width,
+            opensans->glyph->bitmap.rows,
+            Gfx::DRAWMODE_TEXT
+        )
     );
     //did we make a new texture?
     if (!map_tex.second) {
         printf("[FT2] BUG: re-adding existing glyph %d?\n", glyph_index);
         return false;
     }
-    Gfx::Texture& tex = map_tex.first->second;
+    //lol
+    Gfx::Texture& tex = map_tex.first->second.second;
 
     FT_Bitmap& bmp = opensans->glyph->bitmap;
     if (bmp.pixel_mode != FT_PIXEL_MODE_GRAY) {
@@ -69,20 +83,25 @@ void Text::Render(int x, int y) {
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
-            printf("new: %c:%d\n", c, glyph_index);
             bool ok = cacheNewGlyph(glyph_index);
             if (!ok) {
                 continue;
             }
         }
 
-        Gfx::Texture& tex = glyph_cache[glyph_index];
+        auto& tex_pair = glyph_cache[glyph_index];
+        Gfx::Rect& tex_rect = tex_pair.first;
+        Gfx::Texture& tex = tex_pair.second;
+        printf("\"%s\": %c @ (%d,%d):%dx%d ((%d,%d):%dx%d)\n",
+            text.c_str(), c, x + tex_rect.x, y + tex_rect.y,
+            tex_rect.d.w, tex_rect.d.h, x, y, tex.d.w, tex.d.h
+        );
         tex.Render((Gfx::Rect) {
-            .x = x,
-            .y = y,
+            .x = x + tex_rect.x,
+            .y = y + tex_rect.y,
             .d = tex.d,
         });
-        x += tex.d.w;
+        x += tex_rect.d.w;
         //TODO FT2 height adjustments
     }
 }
@@ -90,6 +109,22 @@ void Text::Render(int x, int y) {
 Text::Text(std::string text) :
     text(text) {
 
+    this->d.w = 0;
+    for (auto c : this->text) {
+        FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
+        if (!glyph_cache.contains(glyph_index)) {
+            printf("new: %c:%d\n", c, glyph_index);
+            bool ok = cacheNewGlyph(glyph_index);
+            if (!ok) {
+                continue;
+            }
+        }
+
+        this->d.w += glyph_cache[glyph_index].first.d.w;
+    }
+
+    this->d.h = PIXEL_HEIGHT;
+    //printf("\"%s\" is %dx%d\n", this->text.c_str(), this->d.w, this->d.h);
 }
 
 bool Init() {
@@ -105,7 +140,7 @@ bool Init() {
         return false;
     }
 
-    error = FT_Set_Pixel_Sizes(opensans, 0, 64);
+    error = FT_Set_Pixel_Sizes(opensans, 0, PIXEL_HEIGHT);
     if (error) {
         printf("[FT2] Couldn't set font size! %d\n", error);
         return false;

@@ -10,6 +10,7 @@
 #include <gx2/shaders.h>
 #include <gx2/draw.h>
 #include <gx2/registers.h>
+#include <gx2/mem.h>
 
 namespace Gfx {
 
@@ -24,12 +25,14 @@ static struct {
     GX2UniformVar* uRCPScreenSize;
 } shader_text;
 
-typedef struct _DrawCoords {
+#define NUM_VERTEXES 4
+typedef struct alignas(GX2_VERTEX_BUFFER_ALIGNMENT) _DrawCoords {
     struct {
         float x;
         float y;
-    } coords[4];
+    } coords[NUM_VERTEXES];
 } DrawCoords;
+std::vector<DrawCoords> vertex_cache;
 
 typedef struct _ScreenSize {
     float w;
@@ -125,14 +128,6 @@ Texture::Texture(int w, int h, DrawMode mode) :
     );
     GX2InitTextureRegs(&this->gx2_tex);
     this->pitch = this->gx2_tex.surface.pitch * this->bypp;
-
-    GX2RCreateBuffer(&aPositionBufferTV);
-    GX2RCreateBuffer(&aTexCoordBufferTV);
-    GX2RCreateBuffer(&aPositionBufferDRC);
-    GX2RCreateBuffer(&aTexCoordBufferDRC);
-}
-Texture::Texture(std::string text) {
-    #warning TODO
 }
 
 std::span<uint8_t> Texture::Lock() {
@@ -155,28 +150,16 @@ void Texture::Render(Rect dest) {
     GX2SetPixelSampler(&this->sampler, 0);
     GX2SetPixelTexture(&this->gx2_tex, 0);
 
-    GX2RBuffer* aPositionBuffer = (isRenderingDRC) ? &aPositionBufferDRC : &aPositionBufferTV;
-    GX2RBuffer* aTexCoordBuffer = (isRenderingDRC) ? &aTexCoordBufferDRC : &aTexCoordBufferTV;
-
-    DrawCoords* aPositions = (DrawCoords*)GX2RLockBufferEx(
-        aPositionBuffer, (GX2RResourceFlags)0
-    );
-    if (!aPositions) return;
-    //screen coordinates are fixed up to the usual -1.0f:1.0f in the shader
-    *aPositions = (DrawCoords) { .coords = {
+    DrawCoords& aPositions = vertex_cache.emplace_back((DrawCoords) {.coords={
         [0] = { .x = (float)dest.x,            .y = (float)dest.y            },
         [1] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y            },
         [2] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y + dest.d.h },
         [3] = { .x = (float)dest.x,            .y = (float)dest.y + dest.d.h },
-    }};
-    GX2RUnlockBufferEx(aPositionBuffer, (GX2RResourceFlags)0);
-
-    DrawCoords* aTexCoords = (DrawCoords*)GX2RLockBufferEx(
-        aTexCoordBuffer, (GX2RResourceFlags)0
-    );
-    if (!aTexCoords) return;
-    *aTexCoords = lookup_tex_coords[dest.rotation];
-    GX2RUnlockBufferEx(aTexCoordBuffer, (GX2RResourceFlags)0);
+    }});
+    //this could probably be indexed for a bit more speed
+    DrawCoords& aTexCoords = vertex_cache.emplace_back(lookup_tex_coords[dest.rotation]);
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aPositions, sizeof(aPositions));
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aTexCoords, sizeof(aTexCoords));
 
     switch (this->mode) {
         case DRAWMODE_TEXTURE_RGB: {
@@ -184,11 +167,17 @@ void Texture::Render(Rect dest) {
             GX2SetVertexShader(shader_main.shader.vertexShader);
             GX2SetPixelShader(shader_main.shader.pixelShader);
 
-            GX2RSetAttributeBuffer(
-                aPositionBuffer, shader_main.aPosition, aPositionBuffer->elemSize, 0
+            GX2SetAttribBuffer(
+                shader_main.aPosition,
+                sizeof(aPositions),
+                sizeof(aPositions.coords[0]),
+                &aPositions
             );
-            GX2RSetAttributeBuffer(
-                aTexCoordBuffer, shader_main.aTexCoord, aTexCoordBuffer->elemSize, 0
+            GX2SetAttribBuffer(
+                shader_main.aTexCoord,
+                sizeof(aTexCoords),
+                sizeof(aTexCoords.coords[0]),
+                &aTexCoords
             );
 
             //Shader needs the reciprocal of the screen size to fix coordinates
@@ -200,11 +189,17 @@ void Texture::Render(Rect dest) {
             GX2SetVertexShader(shader_text.shader.vertexShader);
             GX2SetPixelShader(shader_text.shader.pixelShader);
 
-            GX2RSetAttributeBuffer(
-                aPositionBuffer, shader_text.aPosition, aPositionBuffer->elemSize, 0
+            GX2SetAttribBuffer(
+                shader_text.aPosition,
+                sizeof(aPositions),
+                sizeof(aPositions.coords[0]),
+                &aPositions
             );
-            GX2RSetAttributeBuffer(
-                aTexCoordBuffer, shader_text.aTexCoord, aTexCoordBuffer->elemSize, 0
+            GX2SetAttribBuffer(
+                shader_text.aTexCoord,
+                sizeof(aTexCoords),
+                sizeof(aTexCoords.coords[0]),
+                &aTexCoords
             );
 
             //Shader needs the reciprocal of the screen size to fix coordinates
@@ -213,7 +208,7 @@ void Texture::Render(Rect dest) {
         }
     }
 
-    GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, aPositionBuffer->elemCount, 0, 1);
+    GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, NUM_VERTEXES, 0, 1);
 }
 
 void Clear(rgb colour) {
@@ -249,6 +244,7 @@ void DoneRenderBtm() {
 }
 void Present() {
     WHBGfxFinishRender();
+    vertex_cache.clear();
 }
 
 const char* GetError() {
@@ -266,21 +262,6 @@ Resolution GetResolution() {
             return RESOLUTION_720P;
         }
     }
-}
-
-//number cache
-std::unordered_map<char, Texture> numbers_cache;
-
-std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num) {
-    if (!numbers_cache.contains(num)) {
-        return std::nullopt;
-    }
-
-    return std::optional<std::reference_wrapper<Texture>>(numbers_cache[num]);
-}
-void CacheNumber(char num) {
-    std::string str(&num, 1);
-    numbers_cache.try_emplace(num /*key*/, str /*Texture(str)*/);
 }
 
 } //namespace Gfx

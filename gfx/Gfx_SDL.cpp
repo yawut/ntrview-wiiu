@@ -53,7 +53,8 @@ bool Init() {
     return true;
 }
 
-Texture::Texture(int w, int h) {
+Texture::Texture(int w, int h, DrawMode mode) {
+    (void)mode;
     this->sdl_tex = SDL_CreateTexture(renderer,
         IS_BIG_ENDIAN ? SDL_PIXELFORMAT_RGBA8888 : SDL_PIXELFORMAT_ABGR8888,
         SDL_TEXTUREACCESS_STREAMING,
