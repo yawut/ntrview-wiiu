@@ -80,6 +80,7 @@ static bool cacheNewGlyph(FT_UInt glyph_index) {
 }
 
 void Text::Render(int x, int y) {
+    y += PIXEL_HEIGHT; //fix for SDL2_ttf compat
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
@@ -92,10 +93,10 @@ void Text::Render(int x, int y) {
         auto& tex_pair = glyph_cache[glyph_index];
         Gfx::Rect& tex_rect = tex_pair.first;
         Gfx::Texture& tex = tex_pair.second;
-        printf("\"%s\": %c @ (%d,%d):%dx%d ((%d,%d):%dx%d)\n",
+        /*printf("\"%s\": %c @ (%d,%d):%dx%d ((%d,%d):%dx%d)\n",
             text.c_str(), c, x + tex_rect.x, y + tex_rect.y,
             tex_rect.d.w, tex_rect.d.h, x, y, tex.d.w, tex.d.h
-        );
+        );*/
         tex.Render((Gfx::Rect) {
             .x = x + tex_rect.x,
             .y = y + tex_rect.y,
@@ -113,7 +114,7 @@ Text::Text(std::string text) :
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
-            printf("new: %c:%d\n", c, glyph_index);
+            //printf("new: %c:%d\n", c, glyph_index);
             bool ok = cacheNewGlyph(glyph_index);
             if (!ok) {
                 continue;
@@ -123,7 +124,8 @@ Text::Text(std::string text) :
         this->d.w += glyph_cache[glyph_index].first.d.w;
     }
 
-    this->d.h = PIXEL_HEIGHT;
+    this->baseline_y = 24; //uhh
+    this->d.h = PIXEL_HEIGHT + this->baseline_y; //not strictly true
     //printf("\"%s\" is %dx%d\n", this->text.c_str(), this->d.w, this->d.h);
 }
 

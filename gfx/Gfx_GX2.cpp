@@ -146,6 +146,16 @@ void Texture::Unlock(std::span<uint8_t>& pixels) {
 
 void Texture::Render(Rect dest) {
     GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_ALWAYS);
+    GX2SetColorControl(GX2_LOGIC_OP_COPY, 0xFF, FALSE, TRUE);
+    GX2SetBlendControl(GX2_RENDER_TARGET_0,
+        /* RGB = [srcRGB * srcA] + [dstRGB * (1-srcA)] */
+        GX2_BLEND_MODE_SRC_ALPHA, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD,
+        TRUE,
+        /* A = [srcA * 1] + [dstA * (1-srcA)] */
+        GX2_BLEND_MODE_ONE, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD
+    );
 
     GX2SetPixelSampler(&this->sampler, 0);
     GX2SetPixelTexture(&this->gx2_tex, 0);

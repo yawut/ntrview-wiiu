@@ -7,6 +7,7 @@ namespace Text {
 class Text {
 public:
     Gfx::Dimensions d;
+    int baseline_y;
     void Render(int x, int y);
 
     Text(std::string text);

@@ -9,9 +9,9 @@
 ; $SPI_PS_INPUT_CNTL[0].default_val = 1
 
 ; Text is usually given as a single alpha channel, which we can fix here.
-; TODO: R0.xxxx is silly, add "uBaseColour" or something
+; TODO: R0.111x is silly, add "uBaseColour" or something
 
 00 TEX: ADDR(32) CNT(1) VALID_PIX
-    0    SAMPLE R0.xxxx, R0.xy0x, t0, s0
+    0    SAMPLE R0.111x, R0.xy0x, t0, s0
 01 EXP_DONE: PIX0, R0.xyzw
 END_OF_PROGRAM

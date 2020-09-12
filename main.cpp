@@ -125,8 +125,11 @@ int main(int argc, char** argv) {
 
 /*  Show loading text */
     Text::Text loading_text("Now Loading");
+    Gfx::PrepRender();
+    Gfx::PrepRenderBtm();
     Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-    loading_text.Render(0, 720 - loading_text.d.h);
+    loading_text.Render(loading_text.baseline_y, 480 - loading_text.d.h);
+    Gfx::DoneRenderBtm();
     Gfx::Present();
 
 /*  Allocate textures for the received frames */
@@ -235,8 +238,6 @@ int main(int argc, char** argv) {
     Text::Text attempt_text(", attempt ");
     Text::Text connected_text("Connected.");
 
-    Text::Text test_text("this is a test!");
-
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, host, priority, priorityFactor, jpegQuality, QoS);
     printf("did network\n");
@@ -323,7 +324,6 @@ int main(int argc, char** argv) {
             }
         } else {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-            test_text.Render(10, 100);
         }
 
         Gfx::DoneRenderTop();
@@ -343,9 +343,7 @@ int main(int argc, char** argv) {
         } else if (networkState == Network::CONNECTING) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
 
-            test_text.Render(10, 100);
-
-            int x = 0;
+            int x = connecting_text.baseline_y;
             connecting_text.Render(x, 480 - connecting_text.d.h);
             x += connecting_text.d.w;
 
@@ -361,7 +359,7 @@ int main(int argc, char** argv) {
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
             Gfx::Clear((Gfx::rgb) { .r = 0x7f, .g = 0x7f, .b = 0x7f });
-            connected_text.Render(0, 480 - connected_text.d.h);
+            connected_text.Render(connected_text.baseline_y, 480 - connected_text.d.h);
         }
 
         Gfx::DoneRenderBtm();
