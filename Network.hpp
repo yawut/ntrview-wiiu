@@ -60,14 +60,6 @@ struct Packet {
     uint32_t length;
 };
 
-static inline uint32_t Swap(uint32_t in) {
-#ifdef __WIIU__
-    return __builtin_bswap32(in);
-#else
-    return in;
-#endif
-}
-
 #define UDP_PACKET_SIZE (1448)
 
 } //namespace Network

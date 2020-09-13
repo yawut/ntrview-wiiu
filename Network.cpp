@@ -1,4 +1,5 @@
 #include "Network.hpp"
+#include "common.h"
 
 #include <unistd.h>
 #include <fstream>
@@ -210,30 +211,30 @@ void Network::RecieveUDP() {
 
 void Network::SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS) {
     Packet pac = {
-        .magic = Swap(0x12345678),
-        .seq = Swap(1),
-        .type = Swap(0),
-        .cmd = Swap(901),
+        .magic = NativeToLE(0x12345678),
+        .seq = NativeToLE(1),
+        .type = NativeToLE(0),
+        .cmd = NativeToLE(901),
         .args = { .RemotePlay = {
-            .mode = Swap(priority << 8 | priorityFactor),
-            .quality = Swap(jpegQuality),
-            .qos = Swap(QoS*2 << 16),
+            .mode = NativeToLE(priority << 8 | priorityFactor),
+            .quality = NativeToLE(jpegQuality),
+            .qos = NativeToLE(QoS*2 << 16),
         }},
 
-        .length = Swap(0),
+        .length = NativeToLE(0),
     };
     send(ds_sock, &pac, sizeof(pac), 0);
 }
 
 int Network::SendHeartbeat() {
     Packet pac = {
-        .magic = Swap(0x12345678),
-        .seq = Swap(1),
-        .type = Swap(0),
-        .cmd = Swap(0),
+        .magic = NativeToLE(0x12345678),
+        .seq = NativeToLE(1),
+        .type = NativeToLE(0),
+        .cmd = NativeToLE(0),
         .args = { .raw = { 0 } },
 
-        .length = Swap(0),
+        .length = NativeToLE(0),
     };
     int ret = send(ds_sock, &pac, sizeof(pac), 0);
     if (ret < 0) {
