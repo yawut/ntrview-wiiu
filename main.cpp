@@ -3,6 +3,7 @@
 
 #include "gfx/Gfx.hpp"
 #include "gfx/font/Text.hpp"
+#include "input/Input.hpp"
 #include "common.h"
 #include "util.hpp"
 
@@ -174,6 +175,12 @@ int main(int argc, char** argv) {
     user_bg.r = config.GetInteger("display", "background_r", builtin_bg.r);
     user_bg.g = config.GetInteger("display", "background_g", builtin_bg.g);
     user_bg.b = config.GetInteger("display", "background_b", builtin_bg.b);
+
+    Network::Config networkConfig = {
+        .input_ratelimit_us = config.GetInteger("network", "input_ratelimit", 50) * 1000,
+        .input_pollrate_us = config.GetInteger("network", "input_pollrate", 5) * 1000,
+    };
+    Network::SetConfig(networkConfig);
 
     Gfx::Rect layout_tv[Gfx::RESOLUTION_MAX][2 /*inputs*/];
     layout_tv[Gfx::RESOLUTION_480P][0] = configGetRect(config, "profile:0", "layout_480p_tv_top_", (Gfx::Rect) {
@@ -371,6 +378,13 @@ int main(int argc, char** argv) {
 
         Gfx::DoneRenderBtm();
         Gfx::Present();
+
+        if (networkState == Network::CONNECTED_STREAMING) {
+            auto input = Input::Get(layout_drc[1]);
+            if (input) {
+                Network::Input(*input);
+            }
+        }
     }
 
     printf("waiting for network to quit\n");

@@ -16,24 +16,36 @@ static int socketlasterr() {
 
 using namespace Network;
 
-State state = CONNECTING;
-bool quit = false;
+static Config config = {
+    .input_ratelimit_us = 50 * 1000,
+    .input_pollrate_us = 5 * 1000,
+};
+void Network::SetConfig(const Config& config_in) {
+    config = config_in;
+}
 
-int ds_sock = -1;
-int udp_sock = -1;
+static State state = CONNECTING;
+static bool quit = false;
 
-int connect_attempts = 0;
+static int ds_sock = -1;
+static int udp_sock = -1;
+static int input_sock = -1;
+static struct sockaddr_in ds_addr;
+
+static int connect_attempts = 0;
 
 void Network::ConnectDS(const std::string host) {
     int ret;
 
-    ds_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (ds_sock < 0) {
-        NetworkError("Couldn't make socket");
-        return;
+        ds_sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (ds_sock < 0) {
+            NetworkError("Couldn't make socket");
+            return;
+        }
     }
 
-    struct sockaddr_in ds_addr = {
+    ds_addr = (struct sockaddr_in) {
         .sin_family = AF_INET,
         .sin_port = htons(8000),
         .sin_addr = {0},
@@ -63,7 +75,9 @@ void Network::ConnectDS(const std::string host) {
 void Network::ListenUDP() {
     int ret;
 
-    udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udp_sock < 0) {
+        udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    }
 
     struct sockaddr_in listen_addr = {
         .sin_family = AF_INET,
@@ -116,8 +130,8 @@ static jpeg& getJpegForID(uint8_t id, int isTop) {
     return jpeg;
 }
 
-uint8_t lastGoodID_top = 255;
-uint8_t lastGoodID_btm = 255;
+static uint8_t lastGoodID_top = 255;
+static uint8_t lastGoodID_btm = 255;
 
 static void checkGoodJpeg(jpeg& jpeg, int isTop) {
     auto& lastGoodID = (isTop) ? lastGoodID_top : lastGoodID_btm;
@@ -226,6 +240,30 @@ void Network::SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t j
     send(ds_sock, &pac, sizeof(pac), 0);
 }
 
+int Network::SendInputRedirection(Input::InputState input) {
+    int ret;
+    if (input_sock < 0) {
+        input_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (input_sock < 0) return socketlasterr();
+    }
+    uint32_t packet[] = {
+        [0] = NativeToLE(input.buttons.data),
+        [1] = NativeToLE(input.touch.data),
+        [2] = NativeToLE(input.circle.data),
+        [3] = NativeToLE(input.pro.data),
+        [4] = NativeToLE(input.buttons_sys.data),
+    };
+    struct sockaddr_in ds_addr_input = ds_addr;
+    ds_addr_input.sin_port = htons(4950);
+    ret = sendto(input_sock, packet, sizeof(packet), 0, (struct sockaddr*)&ds_addr_input, sizeof(ds_addr_input));
+    /*printf("input: %08X-%08X-%08X-%08X-%08X %d %d\n", packet[0], packet[1], packet[2], packet[3], packet[4],
+        ret, socketlasterr()
+    );*/
+    if (ret < 0) {
+        return socketlasterr();
+    } else return 0;
+}
+
 int Network::SendHeartbeat() {
     Packet pac = {
         .magic = NativeToLE(0x12345678),
@@ -246,6 +284,24 @@ static void heartbeatLoop() {
     while (!quit) {
         SendHeartbeat();
         sleep(1);
+    }
+}
+
+static std::mutex lastInputMtx;
+static Input::InputState lastInput;
+static bool lastInputDirty = false;
+static void inputLoop() {
+    while (!quit) {
+        if (lastInputDirty) {
+            {
+                const std::lock_guard<std::mutex> lock(lastInputMtx);
+                SendInputRedirection(lastInput);
+                lastInputDirty = false;
+            } //mutex release
+            usleep(config.input_ratelimit_us);
+        } else {
+            usleep(config.input_pollrate_us);
+        }
     }
 }
 
@@ -295,9 +351,11 @@ void Network::mainLoop(const std::string host, uint8_t priority, uint8_t priorit
         sleep(1);
     }
     std::thread heartbeatThread(heartbeatLoop);
+    std::thread inputThread(inputLoop);
     while (!quit) {
         RecieveUDP();
     }
+    inputThread.join();
     heartbeatThread.join();
 
     if (ds_sock >= 0) {
@@ -328,6 +386,14 @@ State Network::GetNetworkState() {
 
 int Network::GetConnectionAttempts() {
     return connect_attempts;
+}
+
+void Network::Input(Input::InputState input) {
+    if (lastInput != input) {
+        const std::lock_guard<std::mutex> lock(lastInputMtx);
+        lastInput = input;
+        lastInputDirty = true;
+    }
 }
 
 

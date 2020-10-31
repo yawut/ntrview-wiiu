@@ -30,6 +30,7 @@ if (WIIU)
 
     set(NTRVIEW_GFX_SDL OFF)
     set(NTRVIEW_GFX_GX2 ON)
+    set(NTRVIEW_INPUT_WIIU ON)
     set(NTRVIEW_USE_RAMFS ON)
 elseif (NOT WIIU)
     find_package(Threads)
@@ -37,6 +38,7 @@ elseif (NOT WIIU)
 
     set(NTRVIEW_GFX_SDL ON)
     set(NTRVIEW_GFX_GX2 OFF)
+    set(NTRVIEW_INPUT_WIIU OFF)
     set(NTRVIEW_USE_RAMFS OFF)
 endif()
 
@@ -72,6 +74,15 @@ elseif (NTRVIEW_GFX_GX2)
 
     add_subdirectory(gfx/gx2_shaders)
     target_link_libraries(ntrview gx2shaders PkgConfig::freetype2)
+endif()
+
+if (NTRVIEW_INPUT_WIIU)
+    target_sources(ntrview PRIVATE
+        input/Input_wiiu.cpp
+    )
+    target_compile_definitions(ntrview PRIVATE
+        INPUT_ENABLE INPUT_WIIU
+    )
 endif()
 
 target_link_libraries(ntrview

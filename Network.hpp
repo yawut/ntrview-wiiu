@@ -15,7 +15,14 @@
 #include <cerrno>
 #endif
 
+#include "input/Input.hpp"
+
 namespace Network {
+
+typedef struct Config {
+    int input_ratelimit_us;
+    int input_pollrate_us;
+} Config;
 
 typedef enum State {
     CONNECTING,
@@ -23,11 +30,14 @@ typedef enum State {
     CONNECTED_STREAMING
 } State;
 
+void SetConfig(const Config& config);
+
 void ConnectDS(const std::string host);
 void ListenUDP();
 void RecieveUDP();
 void SendRemotePlay(uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS);
 int SendHeartbeat();
+int SendInputRedirection(Input::InputState input);
 
 State GetNetworkState();
 int GetConnectionAttempts();
@@ -61,5 +71,7 @@ struct Packet {
 };
 
 #define UDP_PACKET_SIZE (1448)
+
+void Input(Input::InputState input);
 
 } //namespace Network
