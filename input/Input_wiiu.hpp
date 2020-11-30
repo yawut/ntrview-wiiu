@@ -70,3 +70,14 @@ const static struct {
         .drc_btn = VPAD_BUTTON_ZR,
     },
 };
+
+const static struct {
+    Input::SButtons ds_btn;
+    uint32_t drc_btn;
+} wiiu_buttons_sys_map[] = {
+    {
+        //stopgap until real input mapping and/or menus are a thing
+        .ds_btn = Input::DS_BUTTON_HOME,
+        .drc_btn = VPAD_BUTTON_STICK_R,
+    },
+};

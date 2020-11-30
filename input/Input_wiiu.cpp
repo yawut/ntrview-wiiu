@@ -24,11 +24,11 @@ std::optional<Input::InputState> Input::Get(Gfx::Rect touch_area) {
                 input.pro.press(map.ds_btn);
             }
         }
-        /*for (auto map : wiiu_buttons_sys_map) {
+        for (auto map : wiiu_buttons_sys_map) {
             if ((status.hold & map.drc_btn) == map.drc_btn) {
                 input.buttons_sys.press(map.ds_btn);
             }
-        }*/
+        }
 
         {
             using namespace std::numbers;
