@@ -1,6 +1,8 @@
 #include "Input.hpp"
 #include "Input_wiiu.hpp"
 
+#include <numbers>
+
 #include <vpad/input.h>
 
 #include "gfx/Gfx.hpp"
@@ -28,12 +30,23 @@ std::optional<Input::InputState> Input::Get(Gfx::Rect touch_area) {
             }
         }*/
 
-        int16_t lx = (int16_t)( status.leftStick.x * 0x5d0) + 0x800;
-        int16_t clx = lx & 0xf80; //get mad!
-        input.circle.x(clx);
-        int16_t ly = (int16_t)( status.leftStick.y * 0x5d0) + 0x800;
-        int16_t cly = ly & 0xf80; //don't make lemonade!
-        input.circle.y(cly);
+        {
+            using namespace std::numbers;
+
+            int16_t lx = (int16_t)( status.leftStick.x * 0x5d0) + 0x800;
+            int16_t clx = lx & 0xf80; //get mad!
+            input.circle.x(clx);
+            int16_t ly = (int16_t)( status.leftStick.y * 0x5d0) + 0x800;
+            int16_t cly = ly & 0xf80; //don't make lemonade!
+            input.circle.y(cly);
+
+            auto rx = ( status.rightStick.x + status.rightStick.y ) / sqrt2;
+            uint8_t crx = ( rx * 0x7f ) + 0x80;
+            input.pro.x(crx);
+            auto ry = ( status.rightStick.y - status.rightStick.x ) / sqrt2;
+            uint8_t cry = ( ry * 0x7f ) + 0x80;
+            input.pro.y(cry);
+        }
 
         if (status.tpNormal.touched) {
             VPADTouchData touch;
