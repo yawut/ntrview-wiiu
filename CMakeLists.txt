@@ -8,14 +8,14 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libturbojpeg REQUIRED IMPORTED_TARGET libturbojpeg)
 
-add_subdirectory(ext/inih)
-
 add_executable(ntrview
     main.cpp
     Network.cpp
+    config/Config.cpp
 )
 target_include_directories(ntrview PRIVATE
     .
+    ext/inipp/inipp
 )
 set_property(TARGET ntrview PROPERTY CXX_STANDARD 20)
 target_compile_options(ntrview PRIVATE
@@ -87,7 +87,6 @@ endif()
 
 target_link_libraries(ntrview
     PkgConfig::libturbojpeg
-    inih::inih-cpp
 )
 
 if (NTRVIEW_USE_RAMFS)

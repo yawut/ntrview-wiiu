@@ -16,21 +16,16 @@
 #endif
 
 #include "input/Input.hpp"
+#include "config/Config.hpp"
 
 namespace Network {
-
-typedef struct Config {
-    int input_ratelimit_us;
-    int input_pollrate_us;
-} Config;
 
 typedef enum State {
     CONNECTING,
     CONNECTED_WAIT,
-    CONNECTED_STREAMING
+    CONNECTED_STREAMING,
+    ERR_BAD_IP
 } State;
-
-void SetConfig(const Config& config);
 
 void ConnectDS(const std::string host);
 void ListenUDP();
@@ -47,7 +42,7 @@ uint8_t GetBtmJPEGID();
 std::vector<uint8_t>& GetTopJPEG(uint8_t id);
 uint8_t GetTopJPEGID();
 
-void mainLoop(const std::string host, uint8_t priority, uint8_t priorityFactor, uint8_t jpegQuality, uint8_t QoS);
+void mainLoop(const Config::NetworkConfig& config);
 void Quit();
 
 #define NetworkError(fmt) printf("[Network] " fmt ": %d\n", socketlasterr())

@@ -1,11 +1,12 @@
 #include <turbojpeg.h>
-#include <INIReader.h>
+#include <inipp.h>
 
 #include "gfx/Gfx.hpp"
 #include "gfx/font/Text.hpp"
 #include "input/Input.hpp"
 #include "common.h"
 #include "util.hpp"
+#include "config/Config.hpp"
 
 #ifdef __WIIU__
 #include <whb/log.h>
@@ -33,47 +34,9 @@ static devoptab_t dotab_stdout = {
 #include <unistd.h>
 #include <sys/types.h>
 #include <thread>
+#include <fstream>
 
 #include "Network.hpp"
-
-const static Gfx::rgb builtin_bg = {
-    .r = 0x20,
-    .g = 0x00,
-    .b = 0x27,
-};
-static Gfx::rgb user_bg = builtin_bg;
-
-Gfx::Rect configGetRect(INIReader& config, const std::string& section, const std::string& name, Gfx::Rect defaults) {
-    Gfx::Rect out;
-    out.x = config.GetInteger(section, name + "x", defaults.x);
-    out.y = config.GetInteger(section, name + "y", defaults.y);
-    out.d.w = config.GetInteger(section, name + "w", defaults.d.w);
-    out.d.h = config.GetInteger(section, name + "h", defaults.d.h);
-    int angle = config.GetInteger(section, name + "angle", -1);
-    switch (angle) {
-        case 0: {
-            out.rotation = Gfx::GFX_ROTATION_0;
-            break;
-        }
-        case 90: {
-            out.rotation = Gfx::GFX_ROTATION_90;
-            break;
-        }
-        case 180: {
-            out.rotation = Gfx::GFX_ROTATION_180;
-            break;
-        }
-        case 270: {
-            out.rotation = Gfx::GFX_ROTATION_270;
-            break;
-        }
-        default: {
-            out.rotation = defaults.rotation;
-            break;
-        }
-    }
-    return out;
-}
 
 int main(int argc, char** argv) {
     int ret;
@@ -129,13 +92,15 @@ int main(int argc, char** argv) {
 
     tjhandle tj_handle = tjInitDecompress();
 
+    Config config;
+
     printf("did init\n");
 
 /*  Show loading text */
     Text::Text loading_text("Now Loading");
     Gfx::PrepRender();
     Gfx::PrepRenderBtm();
-    Gfx::Clear(user_bg);
+    Gfx::Clear(config.background);
     loading_text.Render(loading_text.baseline_y, 480 - loading_text.d.h);
     Gfx::DoneRenderBtm();
     Gfx::Present();
@@ -155,105 +120,23 @@ int main(int argc, char** argv) {
 
 /*  Read config file */
 #ifdef __WIIU__
-    INIReader config(NTRVIEW_DIR "/ntrview.ini");
+    std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
 #else
-    INIReader config("ntrview.ini");
+    std::ifstream config_file("ntrview.ini");
 #endif
 
-    ret = config.ParseError();
-    if (ret > 0) {
-        printf("ntrview.ini syntax error on line %d!\n", ret);
-    } else if (ret < 0) {
-        printf("failed to open ntrview.ini\n");
-    }
-
-    std::string host       = config.Get("3ds", "ip", "10.0.0.10");
-    uint8_t priority       = config.GetInteger("3ds", "priority", 1);
-    uint8_t priorityFactor = config.GetInteger("3ds", "priorityFactor", 5);
-    uint8_t jpegQuality    = config.GetInteger("3ds", "jpegQuality", 80);
-    uint8_t QoS            = config.GetInteger("3ds", "QoS", 18);
-    user_bg.r = config.GetInteger("display", "background_r", builtin_bg.r);
-    user_bg.g = config.GetInteger("display", "background_g", builtin_bg.g);
-    user_bg.b = config.GetInteger("display", "background_b", builtin_bg.b);
-
-    Network::Config networkConfig = {
-        .input_ratelimit_us = config.GetInteger("network", "input_ratelimit", 50) * 1000,
-        .input_pollrate_us = config.GetInteger("network", "input_pollrate", 5) * 1000,
-    };
-    Network::SetConfig(networkConfig);
-
-    Gfx::Rect layout_tv[Gfx::RESOLUTION_MAX][2 /*inputs*/];
-    layout_tv[Gfx::RESOLUTION_480P][0] = configGetRect(config, "profile:0", "layout_480p_tv_top_", (Gfx::Rect) {
-        .x = 27,
-        .y = 0,
-        .d = {
-            .w = 800,
-            .h = 480,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_tv[Gfx::RESOLUTION_480P][1] = configGetRect(config, "profile:0", "layout_480p_tv_btm_", (Gfx::Rect) {
-        .d = {
-            .w = 0,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_tv[Gfx::RESOLUTION_720P][0] = configGetRect(config, "profile:0", "layout_720p_tv_top_", (Gfx::Rect) {
-        .x = 40,
-        .y = 0,
-        .d = {
-            .w = 1200,
-            .h = 720,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_tv[Gfx::RESOLUTION_720P][1] = configGetRect(config, "profile:0", "layout_720p_tv_btm_", (Gfx::Rect) {
-        .d = {
-            .w = 0,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_tv[Gfx::RESOLUTION_1080P][0] = configGetRect(config, "profile:0", "layout_1080p_tv_top_", (Gfx::Rect) {
-        .x = 60,
-        .y = 0,
-        .d = {
-            .w = 1800,
-            .h = 1080,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_tv[Gfx::RESOLUTION_1080P][1] = configGetRect(config, "profile:0", "layout_1080p_tv_btm_", (Gfx::Rect) {
-        .d = {
-            .w = 0,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    Gfx::Rect layout_drc[2];
-    layout_drc[0] = configGetRect(config, "profile:0", "layout_drc_top_", (Gfx::Rect) {
-        .d = {
-            .w = 0,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
-    layout_drc[1] = configGetRect(config, "profile:0", "layout_drc_btm_", (Gfx::Rect) {
-        .x = 107,
-        .y = 0,
-        .d = {
-            .w = 640,
-            .h = 480,
-        },
-        .rotation = Gfx::GFX_ROTATION_270,
-    });
+    config.LoadINI(config_file);
 
     std::string connecting_text_str("Connecting to ");
-    connecting_text_str.append(host);
+    connecting_text_str.append(config.networkconfig.host);
     Text::Text connecting_text(connecting_text_str);
 
     Text::Text attempt_text(", attempt ");
     Text::Text connected_text("Connected.");
+    Text::Text bad_ip_text("Bad IP - check your config");
 
 /*  Start off networking thread */
-    std::thread networkThread(Network::mainLoop, host, priority, priorityFactor, jpegQuality, QoS);
+    std::thread networkThread(Network::mainLoop, config.networkconfig);
     printf("did network\n");
 
     printf("gonna start rendering\n");
@@ -324,20 +207,22 @@ int main(int argc, char** argv) {
             }
         }
 
+        const auto& profile = config.profiles[config.profile];
+
         Gfx::PrepRender();
         Gfx::PrepRenderTop();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            Gfx::Clear(user_bg);
+            Gfx::Clear(config.background);
 
-            if (layout_tv[curRes][0].d.w) {
-                topTexture.Render(layout_tv[curRes][0]);
+            if (profile.layout_tv[curRes][0].d.w) {
+                topTexture.Render(profile.layout_tv[curRes][0]);
             }
-            if (layout_tv[curRes][1].d.w) {
-                btmTexture.Render(layout_tv[curRes][1]);
+            if (profile.layout_tv[curRes][1].d.w) {
+                btmTexture.Render(profile.layout_tv[curRes][1]);
             }
         } else {
-            Gfx::Clear(builtin_bg);
+            Gfx::Clear(config.background);
         }
 
         Gfx::DoneRenderTop();
@@ -345,17 +230,17 @@ int main(int argc, char** argv) {
 
         if (networkState == Network::CONNECTED_STREAMING) {
         #ifndef GFX_SDL
-            Gfx::Clear(user_bg);
+            Gfx::Clear(config.background);
         #endif
 
-            if (layout_drc[0].d.w) {
-                topTexture.Render(layout_drc[0]);
+            if (profile.layout_drc[0].d.w) {
+                topTexture.Render(profile.layout_drc[0]);
             }
-            if (layout_drc[1].d.w) {
-                btmTexture.Render(layout_drc[1]);
+            if (profile.layout_drc[1].d.w) {
+                btmTexture.Render(profile.layout_drc[1]);
             }
         } else if (networkState == Network::CONNECTING) {
-            Gfx::Clear(builtin_bg);
+            Gfx::Clear(config.background);
 
             int x = connecting_text.baseline_y;
             connecting_text.Render(x, 480 - connecting_text.d.h);
@@ -372,15 +257,18 @@ int main(int argc, char** argv) {
                 x += attempts_num.d.w;
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
-            Gfx::Clear(builtin_bg);
+            Gfx::Clear(config.background);
             connected_text.Render(connected_text.baseline_y, 480 - connected_text.d.h);
+        } else if (networkState == Network::ERR_BAD_IP) {
+            Gfx::Clear(config.background);
+            bad_ip_text.Render(bad_ip_text.baseline_y, 480 - bad_ip_text.d.h);
         }
 
         Gfx::DoneRenderBtm();
         Gfx::Present();
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            auto input = Input::Get(layout_drc[1]);
+            auto input = Input::Get(profile.layout_drc[1]);
             if (input) {
                 Network::Input(*input);
             }
