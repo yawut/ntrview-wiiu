@@ -1,8 +1,9 @@
 #include "Config.hpp"
 
 #include <inipp.h>
+typedef inipp::Ini<char> Ini;
 
-void configGetRect(inipp::Ini<char>& ini, const std::string& section, const std::string& name, Gfx::Rect& rect) {
+void configGetRect(Ini& ini, const std::string& section, const std::string& name, Gfx::Rect& rect) {
     inipp::extract(ini.sections[section][name + "x"], rect.x);
     inipp::extract(ini.sections[section][name + "y"], rect.y);
     inipp::extract(ini.sections[section][name + "w"], rect.d.w);
@@ -33,7 +34,7 @@ void configGetRect(inipp::Ini<char>& ini, const std::string& section, const std:
 }
 
 void Config::LoadINI(std::basic_istream<char>& is) {
-    inipp::Ini<char> ini;
+    Ini ini;
     ini.parse(is);
 
     for (const auto& err : ini.errors) {
