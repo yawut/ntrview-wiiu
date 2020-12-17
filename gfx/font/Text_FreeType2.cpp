@@ -107,9 +107,7 @@ void Text::Render(int x, int y) {
     }
 }
 
-Text::Text(std::string text) :
-    text(text) {
-
+void Text::Update() {
     this->d.w = 0;
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
@@ -127,6 +125,11 @@ Text::Text(std::string text) :
     this->baseline_y = 24; //uhh
     this->d.h = PIXEL_HEIGHT + this->baseline_y; //not strictly true
     //printf("\"%s\" is %dx%d\n", this->text.c_str(), this->d.w, this->d.h);
+}
+
+Text::Text(std::string text, int size) :
+    text(text) {
+    Text::Update();
 }
 
 bool Init() {
