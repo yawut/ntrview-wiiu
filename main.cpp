@@ -38,6 +38,8 @@ static devoptab_t dotab_stdout = {
 
 #include "Network.hpp"
 
+void update3DSTextures(tjhandle tj_handle, Gfx::Texture& topTexture, Gfx::Texture& btmTexture);
+
 int main(int argc, char** argv) {
     int ret;
     bool bret;
@@ -45,9 +47,7 @@ int main(int argc, char** argv) {
 
     #ifdef USE_RAMFS
     ramfsInit();
-    OnLeavingScope rfs_c([&] {
-        ramfsExit();
-    });
+    OnLeavingScope rfs_c([&] { ramfsExit(); });
     #endif
 
     #ifdef __WIIU__
@@ -72,9 +72,7 @@ int main(int argc, char** argv) {
     printf("hi\n");
 
     bret = Gfx::Init();
-    OnLeavingScope gfx_c([&] {
-        Gfx::Quit();
-    });
+    OnLeavingScope gfx_c([&] { Gfx::Quit(); });
     if (!bret) {
         printf("Graphics init error!\n");
         return 3;
@@ -82,9 +80,7 @@ int main(int argc, char** argv) {
     Gfx::Resolution curRes = Gfx::GetResolution();
 
     bret = Text::Init();
-    OnLeavingScope txt_c([&] {
-        Text::Quit();
-    });
+    OnLeavingScope txt_c([&] { Text::Quit(); });
     if (!bret) {
         printf("Text init error!\n");
         return 3;
@@ -120,11 +116,7 @@ int main(int argc, char** argv) {
 
     {
     /*  Read config file */
-#ifdef __WIIU__
         std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
-#else
-        std::ifstream config_file("ntrview.ini");
-#endif
         config.LoadINI(config_file);
     } //config_file goes out of scope here
 
@@ -138,12 +130,8 @@ int main(int argc, char** argv) {
 
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, config.networkconfig);
-    printf("did network\n");
 
     printf("gonna start rendering\n");
-
-    int lastTopJPEG = 0;
-    int lastBtmJPEG = 0;
 
 #ifdef GFX_SDL
     SDL_Event event;
@@ -159,81 +147,44 @@ int main(int argc, char** argv) {
             break;
         }
 #endif
+
         Network::State networkState = Network::GetNetworkState();
+        const auto& profile = config.profiles[config.profile];
 
+        //inputs
         if (networkState == Network::CONNECTED_STREAMING) {
-            int cTopJPEG = Network::GetTopJPEGID();
-            if (lastTopJPEG != cTopJPEG) {
-                auto jpeg = Network::GetTopJPEG(cTopJPEG);
-
-                auto pixels = topTexture.Lock();
-                if (topTexture.locked && !pixels.empty()) {
-                    ret = tjDecompress2(tj_handle,
-                        jpeg.data(), jpeg.size(), pixels.data(),
-                        topTexture.d.w, topTexture.pitch, 0,
-                        TJPF_RGBA, 0
-                    );
-
-                    topTexture.Unlock(pixels);
-
-                    if (ret) {
-                        printf("[Decoder] %s\n", tjGetErrorStr());
-                    }
-                    lastTopJPEG = cTopJPEG;
-                } else {
-                    printf("[Decoder] Error: %s\n", Gfx::GetError());
-                }
-            }
-            int cBtmJPEG = Network::GetBtmJPEGID();
-            if (lastBtmJPEG != cBtmJPEG) {
-                auto jpeg = Network::GetBtmJPEG(cBtmJPEG);
-
-                auto pixels = btmTexture.Lock();
-                if (btmTexture.locked && !pixels.empty()) {
-                    ret = tjDecompress2(tj_handle,
-                        jpeg.data(), jpeg.size(), pixels.data(),
-                        btmTexture.d.w, btmTexture.pitch, 0,
-                        TJPF_RGBA, 0
-                    );
-
-                    btmTexture.Unlock(pixels);
-
-                    if (ret) {
-                        printf("[Decoder] %s\n", tjGetErrorStr());
-                    }
-                    lastBtmJPEG = cBtmJPEG;
-                } else {
-                    printf("[Decoder] Error: %s\n", Gfx::GetError());
-                }
+            auto input = Input::Get(profile.layout_drc[1]);
+            if (input) {
+                Network::Input(*input);
             }
         }
 
-        const auto& profile = config.profiles[config.profile];
+        //logic and pre-render work
+        if (networkState == Network::CONNECTED_STREAMING) {
+            update3DSTextures(tj_handle, topTexture, btmTexture);
+        }
 
+        //render
         Gfx::PrepRender();
         Gfx::PrepRenderTop();
+        Gfx::Clear(config.background);
 
         if (networkState == Network::CONNECTED_STREAMING) {
-            Gfx::Clear(config.background);
-
             if (profile.layout_tv[curRes][0].d.w) {
                 topTexture.Render(profile.layout_tv[curRes][0]);
             }
             if (profile.layout_tv[curRes][1].d.w) {
                 btmTexture.Render(profile.layout_tv[curRes][1]);
             }
-        } else {
-            Gfx::Clear(config.background);
         }
 
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
+#ifndef GFX_SDL
+        Gfx::Clear(config.background);
+#endif
 
         if (networkState == Network::CONNECTED_STREAMING) {
-        #ifndef GFX_SDL
-            Gfx::Clear(config.background);
-        #endif
-
             if (profile.layout_drc[0].d.w) {
                 topTexture.Render(profile.layout_drc[0]);
             }
@@ -241,8 +192,6 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_drc[1]);
             }
         } else if (networkState == Network::CONNECTING) {
-            Gfx::Clear(config.background);
-
             int x = connecting_text.baseline_y;
             connecting_text.Render(x, 480 - connecting_text.d.h);
             x += connecting_text.d.w;
@@ -252,28 +201,18 @@ int main(int argc, char** argv) {
                 attempt_text.Render(x, 480 - attempt_text.d.h);
                 x += attempt_text.d.w;
 
-                std::string attempts_num_str = std::to_string(connect_attempts);
-                Text::Text attempts_num(attempts_num_str);
+                Text::Text attempts_num(std::to_string(connect_attempts));
                 attempts_num.Render(x, 480 - attempts_num.d.h);
                 x += attempts_num.d.w;
             }
         } else if (networkState == Network::CONNECTED_WAIT) {
-            Gfx::Clear(config.background);
             connected_text.Render(connected_text.baseline_y, 480 - connected_text.d.h);
         } else if (networkState == Network::ERR_BAD_IP) {
-            Gfx::Clear(config.background);
             bad_ip_text.Render(bad_ip_text.baseline_y, 480 - bad_ip_text.d.h);
         }
 
         Gfx::DoneRenderBtm();
         Gfx::Present();
-
-        if (networkState == Network::CONNECTED_STREAMING) {
-            auto input = Input::Get(profile.layout_drc[1]);
-            if (input) {
-                Network::Input(*input);
-            }
-        }
     }
 
     printf("Quitting...\n");
@@ -282,11 +221,7 @@ int main(int argc, char** argv) {
 
     /*  While we wait, write config file */
     {
-#ifdef __WIIU__
         std::ofstream config_file(NTRVIEW_DIR "/ntrview-new.ini", std::ios::binary);
-#else
-        std::ofstream config_file("ntrview-new.ini", std::ios::binary);
-#endif
         config.SaveINI(config_file);
     } //config_file goes out of scope here
 
@@ -302,4 +237,55 @@ int main(int argc, char** argv) {
     printf("done!\n");
 
     return 0;
+}
+
+void update3DSTextures(tjhandle tj_handle, Gfx::Texture& topTexture, Gfx::Texture& btmTexture) {
+    static int lastTopJPEG = 0, lastBtmJPEG = 0;
+
+    int ret;
+
+    int cTopJPEG = Network::GetTopJPEGID();
+    if (lastTopJPEG != cTopJPEG) {
+        auto jpeg = Network::GetTopJPEG(cTopJPEG);
+
+        auto pixels = topTexture.Lock();
+        if (topTexture.locked && !pixels.empty()) {
+            ret = tjDecompress2(tj_handle,
+                jpeg.data(), jpeg.size(), pixels.data(),
+                topTexture.d.w, topTexture.pitch, 0,
+                TJPF_RGBA, 0
+            );
+
+            topTexture.Unlock(pixels);
+
+            if (ret) {
+                printf("[Decoder] %s\n", tjGetErrorStr());
+            }
+            lastTopJPEG = cTopJPEG;
+        } else {
+            printf("[Decoder] Error: %s\n", Gfx::GetError());
+        }
+    }
+    int cBtmJPEG = Network::GetBtmJPEGID();
+    if (lastBtmJPEG != cBtmJPEG) {
+        auto jpeg = Network::GetBtmJPEG(cBtmJPEG);
+
+        auto pixels = btmTexture.Lock();
+        if (btmTexture.locked && !pixels.empty()) {
+            ret = tjDecompress2(tj_handle,
+                jpeg.data(), jpeg.size(), pixels.data(),
+                btmTexture.d.w, btmTexture.pitch, 0,
+                TJPF_RGBA, 0
+            );
+
+            btmTexture.Unlock(pixels);
+
+            if (ret) {
+                printf("[Decoder] %s\n", tjGetErrorStr());
+            }
+            lastBtmJPEG = cBtmJPEG;
+        } else {
+            printf("[Decoder] Error: %s\n", Gfx::GetError());
+        }
+    }
 }
