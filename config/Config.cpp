@@ -1,5 +1,7 @@
 #include "Config.hpp"
 
+#include <string>
+
 #include <inipp.h>
 typedef inipp::Ini<char> Ini;
 
@@ -77,22 +79,19 @@ void Config::LoadINI(std::basic_istream<char>& is) {
         ini.sections["3ds"]["ip"],
         this->networkconfig.host
     );
-    inipp::extract(
-        ini.sections["3ds"]["priority"],
-        this->networkconfig.priority
-    );
-    inipp::extract(
-        ini.sections["3ds"]["priorityFactor"],
-        this->networkconfig.priorityFactor
-    );
-    inipp::extract(
-        ini.sections["3ds"]["jpegQuality"],
-        this->networkconfig.jpegQuality
-    );
-    inipp::extract(
-        ini.sections["3ds"]["QoS"],
-        this->networkconfig.QoS
-    );
+    //these are uint8_ts which messes with inipp::extract
+    if (!ini.sections["3ds"]["priority"].empty()) {
+        this->networkconfig.priority = std::stoi(ini.sections["3ds"]["priority"]);
+    }
+    if (!ini.sections["3ds"]["priorityFactor"].empty()) {
+        this->networkconfig.priorityFactor = std::stoi(ini.sections["3ds"]["priorityFactor"]);
+    }
+    if (!ini.sections["3ds"]["jpegQuality"].empty()) {
+        this->networkconfig.jpegQuality = std::stoi(ini.sections["3ds"]["jpegQuality"]);
+    }
+    if (!ini.sections["3ds"]["QoS"].empty()) {
+        this->networkconfig.QoS = std::stoi(ini.sections["3ds"]["QoS"]);
+    }
 
     ret = inipp::extract(
         ini.sections["network"]["input_ratelimit"],
@@ -105,18 +104,15 @@ void Config::LoadINI(std::basic_istream<char>& is) {
     );
     if (ret) this->networkconfig.input_pollrate_us *= 1000;
 
-    inipp::extract(
-        ini.sections["display"]["background_r"],
-        this->background.r
-    );
-    inipp::extract(
-        ini.sections["display"]["background_g"],
-        this->background.r
-    );
-    inipp::extract(
-        ini.sections["display"]["background_b"],
-        this->background.r
-    );
+    if (!ini.sections["display"]["background_r"].empty()) {
+        this->background.r = std::stoi(ini.sections["display"]["background_r"]);
+    }
+    if (!ini.sections["display"]["background_g"].empty()) {
+        this->background.g = std::stoi(ini.sections["display"]["background_g"]);
+    }
+    if (!ini.sections["display"]["background_b"].empty()) {
+        this->background.b = std::stoi(ini.sections["display"]["background_b"]);
+    }
 
     for (int i = 0; i < 1; i++) {
         std::string profile_name = "profile:" + std::to_string(i);
