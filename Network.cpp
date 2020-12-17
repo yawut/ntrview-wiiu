@@ -337,7 +337,7 @@ void Network::mainLoop(const Config::NetworkConfig& config) {
     state = CONNECTED_WAIT;
     sleep(2); //I know, I know
 
-    SendRemotePlay(config.priority, config.priorityFactor, config.jpegQuality, config.QoS);
+    SendRemotePlay(config.priority & 0xff, config.priorityFactor & 0xff, config.jpegQuality & 0xff, config.QoS & 0xff);
 
     for (int i = 0; i < 2 && !quit; i++) {
         SendHeartbeat();

@@ -13,10 +13,10 @@ public:
 
     struct NetworkConfig {
         std::string host = "";
-        uint8_t priority = 1;
-        uint8_t priorityFactor = 5;
-        uint8_t jpegQuality = 80;
-        uint8_t QoS = 18;
+        uint priority = 1;
+        uint priorityFactor = 5;
+        uint jpegQuality = 80;
+        uint QoS = 18;
 
         int input_ratelimit_us = 50 * 1000;
         int input_pollrate_us = 5 * 1000;
