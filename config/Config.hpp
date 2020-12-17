@@ -10,6 +10,7 @@
 class Config {
 public:
     void LoadINI(std::basic_istream<char>& is);
+    void SaveINI(std::basic_ostream<char>& os);
 
     struct NetworkConfig {
         std::string host = "";

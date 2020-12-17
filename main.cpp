@@ -118,14 +118,15 @@ int main(int argc, char** argv) {
         return 3;
     }
 
-/*  Read config file */
+    {
+    /*  Read config file */
 #ifdef __WIIU__
-    std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
+        std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
 #else
-    std::ifstream config_file("ntrview.ini");
+        std::ifstream config_file("ntrview.ini");
 #endif
-
-    config.LoadINI(config_file);
+        config.LoadINI(config_file);
+    } //config_file goes out of scope here
 
     std::string connecting_text_str("Connecting to ");
     connecting_text_str.append(config.networkconfig.host);
@@ -275,9 +276,21 @@ int main(int argc, char** argv) {
         }
     }
 
-    printf("waiting for network to quit\n");
+    printf("Quitting...\n");
 
     Network::Quit();
+
+    /*  While we wait, write config file */
+    {
+#ifdef __WIIU__
+        std::ofstream config_file(NTRVIEW_DIR "/ntrview-new.ini", std::ios::binary);
+#else
+        std::ofstream config_file("ntrview-new.ini", std::ios::binary);
+#endif
+        config.SaveINI(config_file);
+    } //config_file goes out of scope here
+
+    printf("waiting for network to quit\n");
     networkThread.join();
 
     printf("network quit!\n");

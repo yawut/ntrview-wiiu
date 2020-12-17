@@ -33,6 +33,36 @@ void configGetRect(Ini& ini, const std::string& section, const std::string& name
     }
 }
 
+Ini::Section configSerialiseRect(const std::string& name, const Gfx::Rect& rect) {
+    int angle;
+    switch (rect.rotation) {
+        case Gfx::GFX_ROTATION_0: {
+            angle = 0;
+            break;
+        }
+        case Gfx::GFX_ROTATION_90: {
+            angle = 90;
+            break;
+        }
+        case Gfx::GFX_ROTATION_180: {
+            angle = 180;
+            break;
+        }
+        default:
+        case Gfx::GFX_ROTATION_270: {
+            angle = 270;
+            break;
+        }
+    }
+    return (Ini::Section) {
+        {name + "x", std::to_string(rect.x)},
+        {name + "y", std::to_string(rect.y)},
+        {name + "w", std::to_string(rect.d.w)},
+        {name + "h", std::to_string(rect.d.h)},
+        {name + "angle", std::to_string(angle)},
+    };
+}
+
 void Config::LoadINI(std::basic_istream<char>& is) {
     Ini ini;
     ini.parse(is);
@@ -103,4 +133,49 @@ void Config::LoadINI(std::basic_istream<char>& is) {
         configGetRect(ini, profile_name, "layout_drc_top_", this->profiles[i].layout_drc[0]);
         configGetRect(ini, profile_name, "layout_drc_btm_", this->profiles[i].layout_drc[1]);
     }
+}
+
+void Config::SaveINI(std::basic_ostream<char>& os) {
+    Ini ini;
+
+    ini.sections.emplace("3ds", (Ini::Section) {
+        {"ip",             this->networkconfig.host},
+        {"priority",       std::to_string(this->networkconfig.priority)},
+        {"priorityFactor", std::to_string(this->networkconfig.priorityFactor)},
+        {"jpegQuality",    std::to_string(this->networkconfig.jpegQuality)},
+        {"QoS",            std::to_string(this->networkconfig.QoS)},
+    });
+
+    ini.sections.emplace("network", (Ini::Section) {
+        {"input_ratelimit", std::to_string(this->networkconfig.input_ratelimit_us/1000)},
+        {"input_pollrate",  std::to_string(this->networkconfig.input_pollrate_us/1000)},
+    });
+
+    ini.sections.emplace("display", (Ini::Section) {
+        {"background_r", std::to_string(this->background.r)},
+        {"background_g", std::to_string(this->background.g)},
+        {"background_b", std::to_string(this->background.b)},
+    });
+
+    for (int i = 0; i < 1; i++) {
+        std::string profile_name = "profile:" + std::to_string(i);
+
+        Ini::Section profile;
+        profile.merge(configSerialiseRect("layout_480p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][0]));
+        profile.merge(configSerialiseRect("layout_480p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][1]));
+
+        profile.merge(configSerialiseRect("layout_720p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][0]));
+        profile.merge(configSerialiseRect("layout_720p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][1]));
+
+        profile.merge(configSerialiseRect("layout_1080p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][0]));
+        profile.merge(configSerialiseRect("layout_1080p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][1]));
+
+        profile.merge(configSerialiseRect("layout_drc_top_", this->profiles[i].layout_drc[0]));
+        profile.merge(configSerialiseRect("layout_drc_btm_", this->profiles[i].layout_drc[1]));
+
+        //slightly weird syntax to hit the move constructor
+        ini.sections.emplace(profile_name, std::move(profile));
+    }
+
+    ini.generate(os);
 }
