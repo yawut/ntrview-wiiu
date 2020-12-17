@@ -19,6 +19,7 @@ endfunction()
 add_library(gx2shaders)
 shader(gx2shaders main)
 shader(gx2shaders text)
+shader(gx2shaders colour)
 
 target_include_directories(gx2shaders
     INTERFACE

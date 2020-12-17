@@ -24,6 +24,11 @@ static struct {
     int aPosition, aTexCoord;
     GX2UniformVar* uRCPScreenSize;
 } shader_text;
+static struct {
+    WHBGfxShaderGroup shader;
+    int aPosition, aColour;
+    GX2UniformVar* uRCPScreenSize;
+} shader_colour;
 
 #define NUM_VERTEXES 4
 typedef struct alignas(GX2_VERTEX_BUFFER_ALIGNMENT) _DrawCoords {
@@ -33,6 +38,22 @@ typedef struct alignas(GX2_VERTEX_BUFFER_ALIGNMENT) _DrawCoords {
     } coords[NUM_VERTEXES];
 } DrawCoords;
 std::vector<DrawCoords> vertex_cache;
+
+struct _DrawColour {
+    float r;
+    float g;
+    float b;
+    float a;
+};
+typedef struct alignas(GX2_VERTEX_BUFFER_ALIGNMENT) _DrawColours {
+    struct _DrawColour colours[NUM_VERTEXES];
+} DrawColours;
+static inline struct _DrawColour mkDrawColour(const rgb& c) {
+    return (struct _DrawColour){
+        .r = c.flt_r(), .g = c.flt_g(), .b = c.flt_b(), .a = c.flt_a()
+    };
+}
+std::vector<DrawColours> colour_cache;
 
 typedef struct _ScreenSize {
     float w;
@@ -90,6 +111,26 @@ bool Init() {
     }
 
     WHBGfxInitFetchShader(&shader_text.shader);
+
+    //init colour shader
+    if (!WHBGfxLoadGFDShaderGroup(&shader_colour.shader, 0, colour_shader)) {
+        printf("[GX2] Couldn't parse shader!\n");
+        return false;
+    }
+
+    buffer = 0;
+    shader_colour.aPosition = buffer++;
+    WHBGfxInitShaderAttribute(&shader_colour.shader, "aPosition", shader_colour.aPosition, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+    shader_colour.aColour = buffer++;
+    WHBGfxInitShaderAttribute(&shader_colour.shader, "aColour", shader_colour.aColour, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32_32_32);
+
+    shader_colour.uRCPScreenSize = GX2GetVertexUniformVar(shader_colour.shader.vertexShader, "uRCPScreenSize");
+    if (!shader_colour.uRCPScreenSize) {
+        printf("[GX2] Couldn't find uRCPScreenSize!\n");
+        return false;
+    }
+
+    WHBGfxInitFetchShader(&shader_colour.shader);
 
     return true;
 }
@@ -217,6 +258,58 @@ void Texture::Render(Rect dest) {
             break;
         }
     }
+
+    GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, NUM_VERTEXES, 0, 1);
+}
+
+void DrawFillRect(const FillRect& rect) {
+    GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_ALWAYS);
+    GX2SetColorControl(GX2_LOGIC_OP_COPY, 0xFF, FALSE, TRUE);
+    GX2SetBlendControl(GX2_RENDER_TARGET_0,
+        /* RGB = [srcRGB * srcA] + [dstRGB * (1-srcA)] */
+        GX2_BLEND_MODE_SRC_ALPHA, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD,
+        TRUE,
+        /* A = [srcA * 1] + [dstA * (1-srcA)] */
+        GX2_BLEND_MODE_ONE, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD
+    );
+
+    auto& dest = rect.r;
+    DrawCoords& aPositions = vertex_cache.emplace_back((DrawCoords) {.coords={
+        [0] = { .x = (float)dest.x,            .y = (float)dest.y            },
+        [1] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y            },
+        [2] = { .x = (float)dest.x + dest.d.w, .y = (float)dest.y + dest.d.h },
+        [3] = { .x = (float)dest.x,            .y = (float)dest.y + dest.d.h },
+    }});
+    DrawColours& aColours = colour_cache.emplace_back((DrawColours) {.colours={
+        [0] = mkDrawColour(rect.c[0]),
+        [1] = mkDrawColour(rect.c[1]),
+        [2] = mkDrawColour(rect.c[2]),
+        [3] = mkDrawColour(rect.c[3]),
+    }});
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aPositions, sizeof(aPositions));
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aColours, sizeof(aColours));
+
+    GX2SetFetchShader(&shader_colour.shader.fetchShader);
+    GX2SetVertexShader(shader_colour.shader.vertexShader);
+    GX2SetPixelShader(shader_colour.shader.pixelShader);
+
+    GX2SetAttribBuffer(
+        shader_colour.aPosition,
+        sizeof(aPositions),
+        sizeof(aPositions.coords[0]),
+        &aPositions
+    );
+    GX2SetAttribBuffer(
+        shader_colour.aColour,
+        sizeof(aColours),
+        sizeof(aColours.colours[0]),
+        &aColours
+    );
+
+    //Shader needs the reciprocal of the screen size to fix coordinates
+    GX2SetVertexUniformReg(shader_colour.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
 
     GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, NUM_VERTEXES, 0, 1);
 }
