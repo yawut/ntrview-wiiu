@@ -7,6 +7,7 @@
 #include "common.h"
 #include "util.hpp"
 #include "config/Config.hpp"
+#include "menu/StatusOverlay.hpp"
 
 #ifdef __WIIU__
 #include <whb/log.h>
@@ -120,13 +121,7 @@ int main(int argc, char** argv) {
         config.LoadINI(config_file);
     } //config_file goes out of scope here
 
-    std::string connecting_text_str("Connecting to ");
-    connecting_text_str.append(config.networkconfig.host);
-    Text::Text connecting_text(connecting_text_str);
-
-    Text::Text attempt_text(", attempt ");
-    Text::Text connected_text("Connected.");
-    Text::Text bad_ip_text("Bad IP - check your config");
+    StatusOverlay statusOverlay(config.networkconfig.host);
 
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, config.networkconfig);
@@ -177,6 +172,7 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_tv[curRes][1]);
             }
         }
+        statusOverlay.Render(networkState);
 
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
@@ -191,25 +187,8 @@ int main(int argc, char** argv) {
             if (profile.layout_drc[1].d.w) {
                 btmTexture.Render(profile.layout_drc[1]);
             }
-        } else if (networkState == Network::CONNECTING) {
-            int x = connecting_text.baseline_y;
-            connecting_text.Render(x, 480 - connecting_text.d.h);
-            x += connecting_text.d.w;
-
-            int connect_attempts = Network::GetConnectionAttempts();
-            if (connect_attempts > 0) {
-                attempt_text.Render(x, 480 - attempt_text.d.h);
-                x += attempt_text.d.w;
-
-                Text::Text attempts_num(std::to_string(connect_attempts));
-                attempts_num.Render(x, 480 - attempts_num.d.h);
-                x += attempts_num.d.w;
-            }
-        } else if (networkState == Network::CONNECTED_WAIT) {
-            connected_text.Render(connected_text.baseline_y, 480 - connected_text.d.h);
-        } else if (networkState == Network::ERR_BAD_IP) {
-            bad_ip_text.Render(bad_ip_text.baseline_y, 480 - bad_ip_text.d.h);
         }
+        statusOverlay.Render(networkState);
 
         Gfx::DoneRenderBtm();
         Gfx::Present();

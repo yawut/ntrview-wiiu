@@ -12,6 +12,7 @@ add_executable(ntrview
     main.cpp
     Network.cpp
     config/Config.cpp
+    menu/StatusOverlay.cpp
 )
 target_include_directories(ntrview PRIVATE
     .
