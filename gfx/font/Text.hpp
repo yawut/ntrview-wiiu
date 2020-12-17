@@ -17,9 +17,6 @@ public:
     Text(std::string text, int size = 48);
 
     std::string text;
-#ifdef GFX_SDL
-    Gfx::Texture tex;
-#endif
 
 private:
     void Update();

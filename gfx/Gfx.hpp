@@ -7,10 +7,7 @@
 #include <vector>
 #include <array>
 
-#ifdef GFX_SDL
-#include <SDL.h>
-#include <SDL_ttf.h>
-#elif defined(GFX_GX2)
+#if defined(GFX_GX2)
 #include <gx2r/buffer.h>
 #include <gx2r/surface.h>
 #include <gx2/texture.h>
@@ -89,13 +86,7 @@ public:
     Texture(int w, int h, DrawMode mode = DRAWMODE_TEXTURE_RGB);
     Texture() {};
 
-#if defined(GFX_SDL)
-    //TODO move this to Text_SDLTTF
-    Texture(std::string text);
-
-    SDL_Texture* sdl_tex = nullptr;
-    bool valid() { return sdl_tex != nullptr; }
-#elif defined(GFX_GX2)
+#if defined(GFX_GX2)
     GX2Sampler sampler;
     GX2Texture gx2_tex = {
         .surface = (GX2Surface) {

@@ -128,19 +128,10 @@ int main(int argc, char** argv) {
 
     printf("gonna start rendering\n");
 
-#ifdef GFX_SDL
-    SDL_Event event;
-#endif
 #ifdef __WIIU__
     while (WHBProcIsRunning()) {
 #else
     while (1) {
-#endif
-#ifdef GFX_SDL
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT) {
-            break;
-        }
 #endif
 
         Network::State networkState = Network::GetNetworkState();
@@ -176,9 +167,7 @@ int main(int argc, char** argv) {
 
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
-#ifndef GFX_SDL
         Gfx::Clear(config.background);
-#endif
 
         if (networkState == Network::CONNECTED_STREAMING) {
             if (profile.layout_drc[0].d.w) {
