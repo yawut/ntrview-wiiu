@@ -67,6 +67,7 @@ public:
     FillRect() {}
 };
 
+//todo probs should be a member function
 void DrawFillRect(const FillRect& rect);
 
 class Texture {

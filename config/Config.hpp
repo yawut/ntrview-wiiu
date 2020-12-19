@@ -9,11 +9,18 @@
 
 class Config {
 public:
+    bool changed = false;
+    bool menu_changed = false;
+    void Change() { changed = true; menu_changed = true; }
     void LoadINI(std::basic_istream<char>& is);
     void SaveINI(std::basic_ostream<char>& os);
 
+    //stuff not saved
+    int currentProfile = 0;
+
+    //stuff saved to config
     struct NetworkConfig {
-        std::string host = "";
+        std::string host = "unset";
         uint8_t priority = 1;
         uint8_t priorityFactor = 5;
         uint8_t jpegQuality = 80;

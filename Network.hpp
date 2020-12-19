@@ -42,7 +42,7 @@ uint8_t GetBtmJPEGID();
 std::vector<uint8_t>& GetTopJPEG(uint8_t id);
 uint8_t GetTopJPEGID();
 
-void mainLoop(const Config::NetworkConfig& config);
+void mainLoop(const Config::NetworkConfig* config);
 void Quit();
 
 #define NetworkError(fmt) printf("[Network] " fmt ": %d\n", socketlasterr())

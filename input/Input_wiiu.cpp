@@ -7,53 +7,51 @@
 
 #include "gfx/Gfx.hpp"
 
-std::optional<Input::InputState> Input::Get(Gfx::Rect touch_area) {
-    Input::InputState input;
+std::optional<Input::WiiUInputState> Input::Get(Gfx::Rect touch_area) {
+    Input::WiiUInputState input;
 
-    VPADStatus status;
     VPADReadError err = VPAD_READ_SUCCESS;
-    VPADRead(VPAD_CHAN_0, &status, 1, &err);
+    VPADRead(VPAD_CHAN_0, &input.native.vpad, 1, &err);
     if (err == VPAD_READ_SUCCESS) {
         for (auto map : wiiu_button_map) {
-            if ((status.hold & map.drc_btn) == map.drc_btn) {
-                input.buttons.press(map.ds_btn);
+            if ((input.native.vpad.hold & map.drc_btn) == map.drc_btn) {
+                input.ds.buttons.press(map.ds_btn);
             }
         }
         for (auto map : wiiu_pro_map) {
-            if ((status.hold & map.drc_btn) == map.drc_btn) {
-                input.pro.press(map.ds_btn);
+            if ((input.native.vpad.hold & map.drc_btn) == map.drc_btn) {
+                input.ds.pro.press(map.ds_btn);
             }
         }
         for (auto map : wiiu_buttons_sys_map) {
-            if ((status.hold & map.drc_btn) == map.drc_btn) {
-                input.buttons_sys.press(map.ds_btn);
+            if ((input.native.vpad.hold & map.drc_btn) == map.drc_btn) {
+                input.ds.buttons_sys.press(map.ds_btn);
             }
         }
 
         {
             using namespace std::numbers;
 
-            int16_t lx = (int16_t)( status.leftStick.x * 0x5d0) + 0x800;
+            int16_t lx = (int16_t)( input.native.vpad.leftStick.x * 0x5d0) + 0x800;
             int16_t clx = lx & 0xf80; //get mad!
-            input.circle.x(clx);
-            int16_t ly = (int16_t)( status.leftStick.y * 0x5d0) + 0x800;
+            input.ds.circle.x(clx);
+            int16_t ly = (int16_t)( input.native.vpad.leftStick.y * 0x5d0) + 0x800;
             int16_t cly = ly & 0xf80; //don't make lemonade!
-            input.circle.y(cly);
+            input.ds.circle.y(cly);
 
-            auto rx = ( status.rightStick.x + status.rightStick.y ) / sqrt2;
+            auto rx = ( input.native.vpad.rightStick.x + input.native.vpad.rightStick.y ) / sqrt2;
             uint8_t crx = ( rx * 0x7f ) + 0x80;
-            input.pro.x(crx);
-            auto ry = ( status.rightStick.y - status.rightStick.x ) / sqrt2;
+            input.ds.pro.x(crx);
+            auto ry = ( input.native.vpad.rightStick.y - input.native.vpad.rightStick.x ) / sqrt2;
             uint8_t cry = ( ry * 0x7f ) + 0x80;
-            input.pro.y(cry);
+            input.ds.pro.y(cry);
         }
 
-        if (status.tpNormal.touched) {
-            VPADTouchData touch;
-            VPADGetTPCalibratedPoint(VPAD_CHAN_0, &touch, &status.tpNormal);
+        if (input.native.vpad.tpNormal.touched) {
+            VPADGetTPCalibratedPoint(VPAD_CHAN_0, &input.native.vpad.tpNormal, &input.native.vpad.tpNormal);
 
-            float x = (float)touch.x * 854.0f / 1280.0f;
-            float y = (float)touch.y * 480.0f / 720.0f;
+            float x = (float)input.native.vpad.tpNormal.x * 854.0f / 1280.0f;
+            float y = (float)input.native.vpad.tpNormal.y * 480.0f / 720.0f;
 
             float fx = ((x - touch_area.x) / (float)touch_area.d.w);
             float fy = ((y - touch_area.y) / (float)touch_area.d.h);
@@ -61,9 +59,9 @@ std::optional<Input::InputState> Input::Get(Gfx::Rect touch_area) {
             if (fx >= 0 && fx < 1 &&
                 fy >= 0 && fy < 1) {
 
-                input.touch.x((uint16_t)(fx * 0xfff));
-                input.touch.y((uint16_t)(fy * 0xfff));
-                input.touch.flags(0x01);
+                input.ds.touch.x((uint16_t)(fx * 0xfff));
+                input.ds.touch.y((uint16_t)(fy * 0xfff));
+                input.ds.touch.flags(0x01);
             }
         }
 

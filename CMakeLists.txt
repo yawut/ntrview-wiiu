@@ -12,6 +12,7 @@ add_executable(ntrview
     input/Input_wiiu.cpp
     gfx/Gfx_GX2.cpp
     gfx/font/Text_FreeType2.cpp
+    menu/Menu.cpp
 )
 wut_create_rpx(ntrview)
 target_include_directories(ntrview PRIVATE

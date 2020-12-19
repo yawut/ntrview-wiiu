@@ -1,10 +1,16 @@
 #include "StatusOverlay.hpp"
 
+void StatusOverlay::Change(const std::string& host) {
+    connecting_text.Change("Connecting to " + host);
+}
+
 StatusOverlay::StatusOverlay(const std::string& host) :
-    connecting_text("Connecting to " + host),
+    connecting_text(""),
     attempt_text(", attempt "),
     connected_text("Connected."),
-    bad_ip_text("Bad IP - check your config") {}
+    bad_ip_text("Bad IP - check your config") {
+    Change(host);
+}
 
 void StatusOverlay::Render(Network::State networkState) {
     if (networkState == Network::CONNECTING) {

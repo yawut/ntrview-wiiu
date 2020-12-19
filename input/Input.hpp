@@ -5,6 +5,8 @@
 
 #include "gfx/Gfx.hpp"
 
+#include <vpad/input.h>
+
 namespace Input {
 
 typedef enum Buttons {
@@ -89,6 +91,15 @@ public:
     }
 };
 
+typedef struct WiiUInputState {
+    InputState ds;
+    struct Native {
+        VPADStatus vpad;
+        VPADTouchData vpad_touch;
+    };
+    struct Native native;
+} WiiUInputState;
+
 /*
     00..000YXLRDULRSSBA
     000000??-12y-12x
@@ -97,6 +108,6 @@ public:
     0..00PlPH
 */
 
-std::optional<InputState> Get(Gfx::Rect touch_area);
+std::optional<WiiUInputState> Get(Gfx::Rect touch_area);
 
 } //namespace Input

@@ -4,12 +4,15 @@
 #include "gfx/Gfx.hpp"
 #include "gfx/font/Text.hpp"
 #include "input/Input.hpp"
+#include "menu/Menu.hpp"
 #include "common.h"
 #include "util.hpp"
 #include "config/Config.hpp"
 #include "menu/StatusOverlay.hpp"
 
 #ifdef __WIIU__
+#include <nn/swkbd.h>
+#include <coreinit/filesystem.h>
 #include <whb/log.h>
 #include <whb/log_udp.h>
 #include <whb/log_cafe.h>
@@ -87,6 +90,29 @@ int main(int argc, char** argv) {
         return 3;
     }
 
+    FSClient* swkbdFSClient = (FSClient*)malloc(sizeof(FSClient));
+    FSAddClient(swkbdFSClient, 0);
+    OnLeavingScope sfs_c([&] {
+        if (swkbdFSClient) {
+            FSDelClient(swkbdFSClient, 0);
+            free(swkbdFSClient);
+        }
+    });
+
+    nn::swkbd::CreateArg swkbdCreateArg = {
+        .workMemory = malloc(nn::swkbd::GetWorkMemorySize(0)),
+        .regionType = nn::swkbd::RegionType::Europe,
+        .fsClient = swkbdFSClient,
+    };
+    OnLeavingScope swm_c([&] {
+        if (swkbdCreateArg.workMemory) free(swkbdCreateArg.workMemory);
+    });
+    if (!nn::swkbd::Create(swkbdCreateArg)) {
+        printf("swkbd init error!\n");
+        return 3;
+    }
+    OnLeavingScope swk_c([&] { nn::swkbd::Destroy(); });
+
     tjhandle tj_handle = tjInitDecompress();
 
     Config config;
@@ -121,13 +147,14 @@ int main(int argc, char** argv) {
         config.LoadINI(config_file);
     } //config_file goes out of scope here
 
-    StatusOverlay statusOverlay(config.networkconfig.host);
+    Menu menus(config);
 
 /*  Start off networking thread */
-    std::thread networkThread(Network::mainLoop, config.networkconfig);
+    std::thread networkThread(Network::mainLoop, &config.networkconfig);
 
     printf("gonna start rendering\n");
 
+    bool menu = false;
 #ifdef __WIIU__
     while (WHBProcIsRunning()) {
 #else
@@ -138,10 +165,34 @@ int main(int argc, char** argv) {
         const auto& profile = config.profiles[config.profile];
 
         //inputs
-        if (networkState == Network::CONNECTED_STREAMING) {
-            auto input = Input::Get(profile.layout_drc[1]);
-            if (input) {
-                Network::Input(*input);
+        auto input = Input::Get(profile.layout_drc[1]);
+        if (input) {
+            if (menu) {
+                //swkbd stuff
+                nn::swkbd::Calc((nn::swkbd::ControllerInfo) {
+                    .vpad = &input->native.vpad,
+                    .kpad = { nullptr, nullptr, nullptr, nullptr }
+                });
+
+                if (nn::swkbd::IsNeedCalcSubThreadFont()) {
+                    nn::swkbd::CalcSubThreadFont();
+                }
+
+                if (nn::swkbd::IsNeedCalcSubThreadPredict()) {
+                    nn::swkbd::CalcSubThreadPredict();
+                }
+
+                menus.Update(config, input->native);
+
+            } else if (networkState == Network::CONNECTED_STREAMING) {
+                Network::Input(input->ds);
+            }
+
+            //temp
+            if ((input->ds.buttons.data & (1<<Input::DS_BUTTON_SELECT)) == 0) {
+                menu = true;
+            } else if ((input->ds.buttons.data & (1<<Input::DS_BUTTON_START)) == 0) {
+                menu = false;
             }
         }
 
@@ -163,7 +214,9 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_tv[curRes][1]);
             }
         }
-        statusOverlay.Render(networkState);
+        menus.overlay.Render(networkState);
+        if (menu) menus.Render();
+        nn::swkbd::DrawTV();
 
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
@@ -177,7 +230,9 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_drc[1]);
             }
         }
-        statusOverlay.Render(networkState);
+        menus.overlay.Render(networkState);
+        if (menu) menus.Render();
+        nn::swkbd::DrawDRC();
 
         Gfx::DoneRenderBtm();
         Gfx::Present();

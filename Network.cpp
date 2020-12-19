@@ -54,6 +54,7 @@ void Network::ConnectDS(const std::string host) {
         return;
     }
 
+    state = CONNECTING;
     ret = connect(ds_sock, (struct sockaddr*)&ds_addr, sizeof(ds_addr));
     if (ret < 0) {
         NetworkErrorF("Can't connect to DS (%s)", host.c_str());
@@ -283,7 +284,7 @@ static void heartbeatLoop() {
 static std::mutex lastInputMtx;
 static Input::InputState lastInput;
 static bool lastInputDirty = false;
-static void inputLoop(const Config::NetworkConfig& config) {
+static void inputLoop(int input_ratelimit_us, int input_pollrate_us) {
     while (!quit) {
         if (lastInputDirty) {
             {
@@ -291,14 +292,14 @@ static void inputLoop(const Config::NetworkConfig& config) {
                 SendInputRedirection(lastInput);
                 lastInputDirty = false;
             } //mutex release
-            usleep(config.input_ratelimit_us);
+            usleep(input_ratelimit_us);
         } else {
-            usleep(config.input_pollrate_us);
+            usleep(input_pollrate_us);
         }
     }
 }
 
-void Network::mainLoop(const Config::NetworkConfig& config) {
+void Network::mainLoop(const Config::NetworkConfig* config) {
     //init bits
     for (auto& jpeg : receivingFrames_top) {
         initJpeg(jpeg);
@@ -314,11 +315,11 @@ void Network::mainLoop(const Config::NetworkConfig& config) {
         connect_attempts++;
         ListenUDP();
     }
-    ConnectDS(config.host);
+    ConnectDS(config->host);
     while (ds_sock < 0 && !quit) {
-        sleep(1);
+        sleep(5);
         connect_attempts++;
-        ConnectDS(config.host);
+        ConnectDS(config->host);
     }
     if (quit) {
         printf("[Network] quit requested\n");
@@ -337,14 +338,14 @@ void Network::mainLoop(const Config::NetworkConfig& config) {
     state = CONNECTED_WAIT;
     sleep(2); //I know, I know
 
-    SendRemotePlay(config.priority, config.priorityFactor, config.jpegQuality, config.QoS);
+    SendRemotePlay(config->priority, config->priorityFactor, config->jpegQuality, config->QoS);
 
     for (int i = 0; i < 2 && !quit; i++) {
         SendHeartbeat();
         sleep(1);
     }
     std::thread heartbeatThread(heartbeatLoop);
-    std::thread inputThread(inputLoop, config);
+    std::thread inputThread(inputLoop, config->input_ratelimit_us, config->input_pollrate_us);
     while (!quit) {
         RecieveUDP();
     }

@@ -10,6 +10,7 @@ class StatusOverlay {
 public:
     StatusOverlay(const std::string& host);
     void Render(Network::State networkState);
+    void Change(const std::string& host);
 
 private:
     Text::Text connecting_text;
