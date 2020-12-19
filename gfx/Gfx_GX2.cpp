@@ -366,5 +366,13 @@ Resolution GetResolution() {
         }
     }
 }
+int GetCurrentScreenWidth() {
+    GX2ColorBuffer* cBuf = isRenderingDRC ? WHBGfxGetDRCColourBuffer() : WHBGfxGetTVColourBuffer();
+    return cBuf->surface.width;
+}
+int GetCurrentScreenHeight() {
+    GX2ColorBuffer* cBuf = isRenderingDRC ? WHBGfxGetDRCColourBuffer() : WHBGfxGetTVColourBuffer();
+    return cBuf->surface.height;
+}
 
 } //namespace Gfx

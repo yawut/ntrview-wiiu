@@ -121,5 +121,7 @@ void CacheNumber(char num);
 
 const char* GetError();
 Resolution GetResolution();
+int GetCurrentScreenWidth();
+int GetCurrentScreenHeight();
 
 } //namespace Gfx

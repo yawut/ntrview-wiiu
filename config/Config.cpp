@@ -75,11 +75,9 @@ void Config::LoadINI(std::basic_istream<char>& is) {
 
     bool ret = false;
 
-    inipp::extract(
-        ini.sections["3ds"]["ip"],
-        this->networkconfig.host
-    );
-    //these are uint8_ts which messes with inipp::extract
+    if (!ini.sections["3ds"]["ip"].empty()) {
+        this->networkconfig.host = ini.sections["3ds"]["host"];
+    }
     if (!ini.sections["3ds"]["priority"].empty()) {
         this->networkconfig.priority = std::stoi(ini.sections["3ds"]["priority"]);
     }

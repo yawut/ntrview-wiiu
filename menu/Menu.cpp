@@ -18,8 +18,8 @@ bg(
         .x = 0,
         .y = 0,
         .d = {
-            .w = 854,
-            .h = 480,
+            .w = 1920,
+            .h = 1080,
         },
     },
     (Gfx::rgb) { .a = 200 }),
@@ -38,17 +38,18 @@ static int selected_item = NONE;
 static bool editing_item = false;
 
 int Menu::DrawMenuItem(MenuItem& item, int y) {
+    int width = Gfx::GetCurrentScreenWidth();
     item.label.Render(pad.x, y + pad.y);
 
     Gfx::DrawFillRect(Gfx::FillRect((Gfx::Rect) {
-        .x = 854 - pad.x - item.text.d.w,
+        .x = width - pad.x - item.text.d.w,
         .y = y + pad.y,
         .d = {
             .w = item.text.d.w,
             .h = 64, //todo - make the freetype engine suck less
         },
     }, (item.id == selected_item) ? selected_colour : unselected_colour));
-    item.text.Render(854 - pad.x - item.text.d.w, y + pad.y);
+    item.text.Render(width - pad.x - item.text.d.w, y + pad.y);
 
     return 64 + pad.y;
 }
