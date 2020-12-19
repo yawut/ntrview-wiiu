@@ -34,7 +34,7 @@ const static Gfx::Rect pad = (Gfx::Rect) {
 };
 
 static bool swkbd_open = false;
-static int selected_item = NONE;
+static int selected_item = IP_ADDRESS;
 static bool editing_item = false;
 
 int Menu::DrawMenuItem(MenuItem& item, int y) {
