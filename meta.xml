@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>NTRview</name>
+  <coder>QuarkTheAwesome</coder>
+  <version>0.3</version>
+  <url>https://github.com/yawut/ntrview-wiiu/releases</url>
+  <release_date>20201202200000</release_date>
+  <short_description>Stream N3DS to Wii U</short_description>
+  <long_description>A Wii U client for NTR CFW's RemotePlay. Allows the GamePad to be used for input redirection.
+  </long_description>
+  <category>tool</category>
+</app>
