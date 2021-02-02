@@ -91,10 +91,10 @@ int main(int argc, char** argv) {
     }
 
     FSClient* swkbdFSClient = (FSClient*)malloc(sizeof(FSClient));
-    FSAddClient(swkbdFSClient, 0);
+    FSAddClient(swkbdFSClient, (FSErrorFlag)0);
     OnLeavingScope sfs_c([&] {
         if (swkbdFSClient) {
-            FSDelClient(swkbdFSClient, 0);
+            FSDelClient(swkbdFSClient, (FSErrorFlag)0);
             free(swkbdFSClient);
         }
     });
