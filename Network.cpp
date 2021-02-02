@@ -7,8 +7,13 @@
 #include <algorithm>
 
 #ifdef __WIIU__
-//cool
+static int closesock(int sockfd) {
+    return socketclose(sockfd);
+}
 #else
+static int closesock(int sockfd) {
+    return close(sockfd);
+}
 static int socketlasterr() {
     return errno;
 }
@@ -47,7 +52,7 @@ void Network::ConnectDS(const std::string host) {
     if (ret <= 0) {
         NetworkErrorF("Address %s invalid - check your config file", host.c_str());
         if (ds_sock >= 0) {
-            shutdown(ds_sock, 2); //HACK wiiu compat
+            closesock(ds_sock);
             ds_sock = -1;
         }
         state = ERR_BAD_IP;
@@ -59,7 +64,7 @@ void Network::ConnectDS(const std::string host) {
     if (ret < 0) {
         NetworkErrorF("Can't connect to DS (%s)", host.c_str());
         if (ds_sock >= 0) {
-            shutdown(ds_sock, 2); //HACK wiiu compat
+            closesock(ds_sock);
             ds_sock = -1;
         }
         return;
@@ -85,7 +90,7 @@ void Network::ListenUDP() {
     if (ret < 0) {
         NetworkError("Can't bind to UDP");
         if (udp_sock >= 0) {
-            shutdown(udp_sock, 2); //HACK wiiu compat
+            closesock(udp_sock);
             udp_sock = -1;
         }
         return;
@@ -325,11 +330,11 @@ void Network::mainLoop(const Config::NetworkConfig* config) {
         printf("[Network] quit requested\n");
         if (ds_sock >= 0) {
             printf("[Network] Tearing down ds sock\n");
-            shutdown(ds_sock, 2); //HACK wiiu compat
+            closesock(ds_sock);
         }
         if (udp_sock >= 0) {
             printf("[Network] Tearing down udp sock\n");
-            shutdown(udp_sock, 2); //HACK wiiu compat
+            closesock(udp_sock);
         }
         printf("[Network] bye!\n");
         return;
@@ -353,22 +358,22 @@ void Network::mainLoop(const Config::NetworkConfig* config) {
     heartbeatThread.join();
 
     if (ds_sock >= 0) {
-        shutdown(ds_sock, 2); //HACK wiiu compat
+        closesock(ds_sock);
         ds_sock = -1;
     }
     if (udp_sock >= 0) {
-        shutdown(udp_sock, 2); //HACK wiiu compat
+        closesock(udp_sock);
         udp_sock = -1;
     }
 }
 
 void Network::Quit() {
     if (ds_sock >= 0) {
-        shutdown(ds_sock, 2); //HACK wiiu compat
+        closesock(ds_sock);
         ds_sock = -1;
     }
     if (udp_sock >= 0) {
-        shutdown(udp_sock, 2); //HACK wiiu compat
+        closesock(udp_sock);
         udp_sock = -1;
     }
     quit = true;
