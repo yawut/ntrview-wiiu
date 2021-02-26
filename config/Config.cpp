@@ -76,7 +76,7 @@ void Config::LoadINI(std::basic_istream<char>& is) {
     bool ret = false;
 
     if (!ini.sections["3ds"]["ip"].empty()) {
-        this->networkconfig.host = ini.sections["3ds"]["host"];
+        this->networkconfig.host = ini.sections["3ds"]["ip"];
     }
     if (!ini.sections["3ds"]["priority"].empty()) {
         this->networkconfig.priority = std::stoi(ini.sections["3ds"]["priority"]);
