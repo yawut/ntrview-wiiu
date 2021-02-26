@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 
     /*  While we wait, write config file */
     {
-        std::ofstream config_file(NTRVIEW_DIR "/ntrview-new.ini", std::ios::binary);
+        std::ofstream config_file(NTRVIEW_DIR "/ntrview.ini", std::ios::binary);
         config.SaveINI(config_file);
     } //config_file goes out of scope here
 
