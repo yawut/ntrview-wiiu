@@ -8,7 +8,7 @@ StatusOverlay::StatusOverlay(const std::string& host) :
     connecting_text(""),
     attempt_text(", attempt "),
     connected_text("Connected."),
-    bad_ip_text("Bad IP - check your config") {
+    bad_ip_text("Bad IP - press Left Stick for menu") {
     Change(host);
 }
 
