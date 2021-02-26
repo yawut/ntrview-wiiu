@@ -9,7 +9,7 @@
 class Menu {
 public:
     Menu(Config& config);
-    void Update(Config& config, const Input::WiiUInputState::Native& input);
+    bool Update(Config& config, const Input::WiiUInputState::Native& input);
     void Render();
 
     StatusOverlay overlay;

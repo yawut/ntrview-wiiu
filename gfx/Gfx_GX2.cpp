@@ -314,6 +314,87 @@ void DrawFillRect(const FillRect& rect) {
     GX2DrawEx(GX2_PRIMITIVE_MODE_QUADS, NUM_VERTEXES, 0, 1);
 }
 
+void DrawFillTri(const FillTri& tri) {
+    GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_ALWAYS);
+    GX2SetColorControl(GX2_LOGIC_OP_COPY, 0xFF, FALSE, TRUE);
+    GX2SetBlendControl(GX2_RENDER_TARGET_0,
+        /* RGB = [srcRGB * srcA] + [dstRGB * (1-srcA)] */
+        GX2_BLEND_MODE_SRC_ALPHA, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD,
+        TRUE,
+        /* A = [srcA * 1] + [dstA * (1-srcA)] */
+        GX2_BLEND_MODE_ONE, GX2_BLEND_MODE_INV_SRC_ALPHA,
+        GX2_BLEND_COMBINE_MODE_ADD
+    );
+
+    auto& dest = tri.t;
+    int x2, y2, x3, y3;
+    switch (dest.rotation) {
+        case GFX_ROTATION_0: {
+            x2 = dest.x - dest.size;
+            y2 = dest.y + dest.size;
+            x3 = dest.x + dest.size;
+            y3 = dest.y + dest.size;
+            break;
+        }
+        case GFX_ROTATION_90: {
+            x2 = dest.x + dest.size;
+            y2 = dest.y + dest.size;
+            x3 = dest.x + dest.size;
+            y3 = dest.y - dest.size;
+            break;
+        }
+        case GFX_ROTATION_180: {
+            x2 = dest.x + dest.size;
+            y2 = dest.y - dest.size;
+            x3 = dest.x - dest.size;
+            y3 = dest.y - dest.size;
+            break;
+        }
+        case GFX_ROTATION_270: {
+            x2 = dest.x - dest.size;
+            y2 = dest.y - dest.size;
+            x3 = dest.x - dest.size;
+            y3 = dest.y + dest.size;
+            break;
+        }
+    }
+    DrawCoords& aPositions = vertex_cache.emplace_back((DrawCoords) {.coords={
+        [0] = { .x = (float)dest.x, .y = (float)dest.y },
+        [1] = { .x = (float)x2, .y = (float)y2 },
+        [2] = { .x = (float)x3, .y = (float)y3 },
+    }});
+    DrawColours& aColours = colour_cache.emplace_back((DrawColours) {.colours={
+        [0] = mkDrawColour(tri.c[0]),
+        [1] = mkDrawColour(tri.c[1]),
+        [2] = mkDrawColour(tri.c[2]),
+    }});
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aPositions, sizeof(aPositions));
+    GX2Invalidate(GX2_INVALIDATE_MODE_CPU_ATTRIBUTE_BUFFER, &aColours, sizeof(aColours));
+
+    GX2SetFetchShader(&shader_colour.shader.fetchShader);
+    GX2SetVertexShader(shader_colour.shader.vertexShader);
+    GX2SetPixelShader(shader_colour.shader.pixelShader);
+
+    GX2SetAttribBuffer(
+        shader_colour.aPosition,
+        sizeof(aPositions),
+        sizeof(aPositions.coords[0]),
+        &aPositions
+    );
+    GX2SetAttribBuffer(
+        shader_colour.aColour,
+        sizeof(aColours),
+        sizeof(aColours.colours[0]),
+        &aColours
+    );
+
+    //Shader needs the reciprocal of the screen size to fix coordinates
+    GX2SetVertexUniformReg(shader_colour.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+
+    GX2DrawEx(GX2_PRIMITIVE_MODE_TRIANGLES, 3, 0, 1);
+}
+
 void Clear(rgb colour) {
     WHBGfxClearColor(colour.flt_r(), colour.flt_g(), colour.flt_b(), colour.flt_a());
 }

@@ -155,6 +155,7 @@ int main(int argc, char** argv) {
     printf("gonna start rendering\n");
 
     bool menu = false;
+    bool menu_input_buffering = false;
 #ifdef __WIIU__
     while (WHBProcIsRunning()) {
 #else
@@ -182,17 +183,14 @@ int main(int argc, char** argv) {
                     nn::swkbd::CalcSubThreadPredict();
                 }
 
-                menus.Update(config, input->native);
-
-            } else if (networkState == Network::CONNECTED_STREAMING) {
-                Network::Input(input->ds);
-            }
-
-            //temp
-            if ((input->ds.buttons.data & (1<<Input::DS_BUTTON_SELECT)) == 0) {
+                menu = menus.Update(config, input->native);
+                if (!menu) menu_input_buffering = true;
+            } else if (input->native.vpad.trigger & VPAD_BUTTON_STICK_L) {
                 menu = true;
-            } else if ((input->ds.buttons.data & (1<<Input::DS_BUTTON_START)) == 0) {
-                menu = false;
+            } else if (networkState == Network::CONNECTED_STREAMING && !menu_input_buffering) {
+                Network::Input(input->ds);
+            } else if (menu_input_buffering) {
+                if (input->native.vpad.hold == 0) menu_input_buffering = false;
             }
         }
 

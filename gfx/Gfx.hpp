@@ -46,6 +46,11 @@ typedef struct Rect {
     Dimensions d;
     Rotation rotation = GFX_ROTATION_0;
 } Rect;
+typedef struct Tri { //a mildly absurd triangle abstraction
+    int x, y;
+    int size;
+    Rotation rotation = GFX_ROTATION_0;
+} Tri;
 typedef struct rgb {
     uint8_t r;
     uint8_t g;
@@ -67,8 +72,19 @@ public:
     FillRect() {}
 };
 
+class FillTri {
+public:
+    Tri t;
+    std::array<rgb, 3> c;
+    FillTri(Tri t, rgb c) : t(t) {
+        this->c.fill(c);
+    }
+    FillTri() {}
+};
+
 //todo probs should be a member function
 void DrawFillRect(const FillRect& rect);
+void DrawFillTri(const FillTri& tri);
 
 class Texture {
 public:

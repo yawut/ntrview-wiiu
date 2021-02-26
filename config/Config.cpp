@@ -112,20 +112,33 @@ void Config::LoadINI(std::basic_istream<char>& is) {
         this->background.b = std::stoi(ini.sections["display"]["background_b"]);
     }
 
-    for (int i = 0; i < 1; i++) {
-        std::string profile_name = "profile:" + std::to_string(i);
+    this->profiles.reserve(8);
+    for (size_t i = 0; i < 8; i++) {
+        std::string profile_sect = "profile:" + std::to_string(i);
+        if (!ini.sections.contains(profile_sect)) break;
 
-        configGetRect(ini, profile_name, "layout_480p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][0]);
-        configGetRect(ini, profile_name, "layout_480p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][1]);
+        //mildly inefficient, like much of this code
+        if (!(i < this->profiles.size())) {
+            this->profiles.resize(i + 1);
+        }
 
-        configGetRect(ini, profile_name, "layout_720p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][0]);
-        configGetRect(ini, profile_name, "layout_720p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][1]);
+        if (!ini.sections[profile_sect]["name"].empty()) {
+            this->profiles[i].name = ini.sections[profile_sect]["name"];
+        } else if (this->profiles[i].name.empty()) {
+            this->profiles[i].name = "Profile " + std::to_string(i);
+        }
 
-        configGetRect(ini, profile_name, "layout_1080p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][0]);
-        configGetRect(ini, profile_name, "layout_1080p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][1]);
+        configGetRect(ini, profile_sect, "layout_480p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][0]);
+        configGetRect(ini, profile_sect, "layout_480p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][1]);
 
-        configGetRect(ini, profile_name, "layout_drc_top_", this->profiles[i].layout_drc[0]);
-        configGetRect(ini, profile_name, "layout_drc_btm_", this->profiles[i].layout_drc[1]);
+        configGetRect(ini, profile_sect, "layout_720p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][0]);
+        configGetRect(ini, profile_sect, "layout_720p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_720P][1]);
+
+        configGetRect(ini, profile_sect, "layout_1080p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][0]);
+        configGetRect(ini, profile_sect, "layout_1080p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_1080P][1]);
+
+        configGetRect(ini, profile_sect, "layout_drc_top_", this->profiles[i].layout_drc[0]);
+        configGetRect(ini, profile_sect, "layout_drc_btm_", this->profiles[i].layout_drc[1]);
     }
 }
 
@@ -151,10 +164,12 @@ void Config::SaveINI(std::basic_ostream<char>& os) {
         {"background_b", std::to_string(this->background.b)},
     });
 
-    for (int i = 0; i < 1; i++) {
+    for (size_t i = 0; i < this->profiles.size(); i++) {
         std::string profile_name = "profile:" + std::to_string(i);
 
         Ini::Section profile;
+        profile.emplace("name", this->profiles[i].name);
+
         profile.merge(configSerialiseRect("layout_480p_tv_top_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][0]));
         profile.merge(configSerialiseRect("layout_480p_tv_btm_", this->profiles[i].layout_tv[Gfx::RESOLUTION_480P][1]));
 
