@@ -146,11 +146,14 @@ bool Menu::Update(Config& config, const Input::WiiUInputState::Native& input) {
                     break;
                 }
                 case IP_ADDRESS: {
-                    swkbd_open = nn::swkbd::AppearInputForm((nn::swkbd::AppearArg) {
-                        .inputFormArg = {
-                            .maxTextLength = 15,
-                        },
-                    });
+                    nn::swkbd::AppearArg kbd;
+                    kbd.keyboardArg.configArg.keyboardMode = nn::swkbd::KeyboardMode::Numpad;
+                    kbd.keyboardArg.configArg.numpadCharLeft = L'.';
+                    kbd.keyboardArg.configArg.disableNewLine = true;
+                    kbd.inputFormArg.type = nn::swkbd::InputFormType::inputform0;
+                    kbd.inputFormArg.maxTextLength = 15;
+                    kbd.inputFormArg.hintText = u"Please enter your 3DS's IP address.";
+                    swkbd_open = nn::swkbd::AppearInputForm(kbd);
                     break;
                 }
                 case PROFILE: {
