@@ -6,14 +6,10 @@
 #include <array>
 #include <mutex>
 
-#ifdef __WIIU__
-#include <nsysnet/socket.h>
-#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cerrno>
-#endif
 
 #include "input/Input.hpp"
 #include "config/Config.hpp"
@@ -45,8 +41,8 @@ uint8_t GetTopJPEGID();
 void mainLoop(const Config::NetworkConfig* config);
 void Quit();
 
-#define NetworkError(fmt) printf("[Network] " fmt ": %d\n", socketlasterr())
-#define NetworkErrorF(fmt, ...) printf("[Network] " fmt ": %d\n", __VA_ARGS__, socketlasterr())
+#define NetworkError(fmt) printf("[Network] " fmt ": %d\n", errno)
+#define NetworkErrorF(fmt, ...) printf("[Network] " fmt ": %d\n", __VA_ARGS__, errno)
 
 struct Packet {
     uint32_t magic;
