@@ -11,7 +11,7 @@ function(shader target name)
             ${CMAKE_CURRENT_SOURCE_DIR}/build-shaders.sh
             ${CMAKE_CURRENT_SOURCE_DIR}/${name}.vsh
             ${CMAKE_CURRENT_SOURCE_DIR}/${name}.psh
-        COMMENT "Assembling shaders"
+        COMMENT "Assembling ${name} shader"
     )
     target_sources(${target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/shader_${name}.c)
 endfunction()
