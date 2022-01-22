@@ -132,9 +132,6 @@ void PrepRenderBtm();
 void DoneRenderBtm();
 void Present();
 
-std::optional<std::reference_wrapper<Texture>> GetCachedNumber(char num);
-void CacheNumber(char num);
-
 const char* GetError();
 Resolution GetResolution();
 int GetCurrentScreenWidth();
