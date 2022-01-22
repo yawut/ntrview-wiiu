@@ -19,6 +19,20 @@ WORKDIR /decaf-emu/build
 RUN cmake .. -DDECAF_FFMPEG=OFF -DDECAF_SDL=OFF -DDECAF_VULKAN=OFF -DDECAF_QT=OFF -DDECAF_BUILD_TOOLS=ON && \
     make latte-assembler -j$(nproc)
 
+# build patched wut w/ extra swkbd bits
+FROM devkitpro/devkitppc:20220103 AS wut-build
+RUN apt-get -y update && apt-get -y install --no-install-recommends \
+    git ca-certificates \
+&& rm -rf /var/lib/apt/lists
+
+WORKDIR /wut
+RUN git init && \
+    git remote add origin https://github.com/NessieHax/wut && \
+    git fetch --depth 1 origin fd498a960479d5bf5572f76166cedafc58f67dcc && \
+    git checkout FETCH_HEAD
+
+RUN make install -j$(nproc)
+
 # build ntrview
 FROM devkitpro/devkitppc:20220103
 RUN apt-get -y update && apt-get -y install --no-install-recommends \
@@ -26,6 +40,7 @@ RUN apt-get -y update && apt-get -y install --no-install-recommends \
 && rm -rf /var/lib/apt/lists
 
 COPY --from=decaf-build /decaf-emu/build/obj/latte-assembler /usr/local/bin
+COPY --from=wut-build /opt/devkitpro/wut /opt/devkitpro/wut
 
 WORKDIR /app
 CMD mkdir -p build && cd build && cmake .. && make -j$(nproc)
