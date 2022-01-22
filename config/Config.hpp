@@ -3,6 +3,7 @@
 #include "gfx/Gfx.hpp"
 
 #include <vector>
+#include <optional>
 #include <string>
 #include <fstream>
 #include <stdint.h>
