@@ -32,6 +32,9 @@ const static Gfx::Rect pad = (Gfx::Rect) {
     .x = 30,
     .y = 30,
 };
+const static Gfx::Rect text_pad = (Gfx::Rect) {
+    .x = 5,
+};
 
 static bool swkbd_open = false;
 static int selected_item = IP_ADDRESS;
@@ -42,20 +45,22 @@ static bool profile_has_prev = false;
 
 int Menu::DrawMenuItem(MenuItem& item, int y) {
     int width = Gfx::GetCurrentScreenWidth();
-    item.label.Render(pad.x, y + pad.y);
+    item.label.Render(pad.x, y + pad.y + item.label.pt_size);
+
+    int box_h = (item.text.pt_size * 4) / 3;
 
     Gfx::DrawFillRect(Gfx::FillRect((Gfx::Rect) {
-        .x = width - pad.x - item.text.d.w,
+        .x = width - pad.x - item.text.d.w - text_pad.x,
         .y = y + pad.y,
         .d = {
-            .w = item.text.d.w,
-            .h = 64, //todo - make the freetype engine suck less
+            .w = item.text.d.w + text_pad.x*2,
+            .h = box_h,
         },
     }, (item.id == selected_item) ? selected_colour : unselected_colour));
-    item.text.Render(width - pad.x - item.text.d.w, y + pad.y);
+    item.text.Render(width - pad.x - item.text.d.w, y + pad.y + item.text.pt_size);
 
     if (item.id == selected_item && item.id == PROFILE) {
-        int ty = y + pad.y + 64 / 2;
+        int ty = y + pad.y + box_h / 2;
         Gfx::DrawFillTri(Gfx::FillTri((Gfx::Tri) {
             .x = width - pad.x - item.text.d.w - (pad.x * 3 / 4),
             .y = ty,
@@ -70,7 +75,7 @@ int Menu::DrawMenuItem(MenuItem& item, int y) {
         }, (editing_item && profile_has_next)? selected_colour : unselected_colour));
     }
 
-    return 64 + pad.y;
+    return box_h + pad.y;
 }
 
 void Menu::Render() {

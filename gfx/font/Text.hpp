@@ -8,7 +8,9 @@ class Text {
 public:
     Gfx::Dimensions d;
     int baseline_y;
-    void Render(int x, int y);
+    const int pt_size;
+
+    void Render(int x, int baseline_y);
     void Change(const std::string& text) {
         this->text = text;
         this->Update();

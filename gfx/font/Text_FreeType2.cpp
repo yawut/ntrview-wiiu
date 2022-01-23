@@ -79,8 +79,7 @@ static bool cacheNewGlyph(FT_UInt glyph_index) {
     return true;
 }
 
-void Text::Render(int x, int y) {
-    y += PIXEL_HEIGHT; //fix for SDL2_ttf compat
+void Text::Render(int x, int baseline_y) {
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
@@ -99,7 +98,7 @@ void Text::Render(int x, int y) {
         );*/
         tex.Render((Gfx::Rect) {
             .x = x + tex_rect.x,
-            .y = y + tex_rect.y,
+            .y = baseline_y + tex_rect.y,
             .d = tex.d,
         });
         x += tex_rect.d.w;
@@ -109,26 +108,33 @@ void Text::Render(int x, int y) {
 
 void Text::Update() {
     this->d.w = 0;
+    int min_y = 0;
+    int max_y = 0;
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
-            //printf("new: %c:%d\n", c, glyph_index);
             bool ok = cacheNewGlyph(glyph_index);
             if (!ok) {
                 continue;
             }
         }
 
-        this->d.w += glyph_cache[glyph_index].first.d.w;
+        const auto& [tex_rect, tex] = glyph_cache[glyph_index];
+        int tex_min_y = tex_rect.y;
+        int tex_max_y = tex_rect.y + tex.d.h;
+
+        if (tex_min_y < min_y) min_y = tex_min_y;
+        if (tex_max_y > max_y) max_y = tex_max_y;
+
+        this->d.w += tex_rect.d.w;
     }
 
-    this->baseline_y = 24; //uhh
-    this->d.h = PIXEL_HEIGHT + this->baseline_y; //not strictly true
-    //printf("\"%s\" is %dx%d\n", this->text.c_str(), this->d.w, this->d.h);
+    this->baseline_y = -min_y;
+    this->d.h = max_y - min_y;
 }
 
 Text::Text(std::string text, int size) :
-    text(text) {
+    pt_size(size), text(text) {
     Text::Update();
 }
 

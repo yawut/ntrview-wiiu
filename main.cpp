@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     Gfx::PrepRender();
     Gfx::PrepRenderBtm();
     Gfx::Clear(config.background);
-    loading_text.Render(loading_text.baseline_y, 480 - loading_text.d.h);
+    loading_text.Render(30, 480 - 30);
     Gfx::DoneRenderBtm();
     Gfx::Present();
 
