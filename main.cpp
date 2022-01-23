@@ -73,6 +73,15 @@ int main(int argc, char** argv) {
     });
     #endif
 
+    #ifdef __WIIU__
+    KPADInit();
+    WPADEnableURCC(true);
+    WPADEnableWiiRemote(true);
+    OnLeavingScope kpd_c([&] {
+        //KPADShutdown();
+    });
+    #endif
+
     printf("hi\n");
 
     bret = Gfx::Init();

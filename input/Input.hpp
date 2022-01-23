@@ -6,6 +6,7 @@
 #include "gfx/Gfx.hpp"
 
 #include <vpad/input.h>
+#include <padscore/kpad.h>
 
 namespace Input {
 
@@ -91,12 +92,31 @@ public:
     }
 };
 
+enum class ExtType {
+    Core = 0,
+    Nunchuk,
+    Classic,
+    Pro,
+    _NumExts = 4,
+};
+
+enum class Priority {
+    VPAD,
+    KPAD1,
+    KPAD2,
+    KPAD3,
+    KPAD4,
+};
+
 typedef struct WiiUInputState {
     InputState ds;
     struct Native {
         VPADStatus vpad;
         VPADTouchData vpad_touch;
+        KPADStatus kpad[4];
     };
+    ExtType ext;
+    Priority priority;
     struct Native native;
 } WiiUInputState;
 
