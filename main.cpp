@@ -184,7 +184,8 @@ int main(int argc, char** argv) {
                 //swkbd stuff
                 nn::swkbd::Calc((nn::swkbd::ControllerInfo) {
                     .vpad = &input->native.vpad,
-                    .kpad = { nullptr, nullptr, nullptr, nullptr }
+                    .kpad = { &input->native.kpad[0], &input->native.kpad[1],
+                        &input->native.kpad[2], &input->native.kpad[3] }
                 });
 
                 if (nn::swkbd::IsNeedCalcSubThreadFont()) {
@@ -195,14 +196,16 @@ int main(int argc, char** argv) {
                     nn::swkbd::CalcSubThreadPredict();
                 }
 
-                menu = menus.Update(config, input->native);
+                menu = menus.Update(config, menu, *input);
                 if (!menu) menu_input_buffering = true;
-            } else if (input->native.vpad.trigger & VPAD_BUTTON_STICK_L) {
-                menu = true;
-            } else if (networkState == Network::CONNECTED_STREAMING && !menu_input_buffering) {
-                Network::Input(input->ds);
-            } else if (menu_input_buffering) {
-                if (input->native.vpad.hold == 0) menu_input_buffering = false;
+            } else {
+                menu = menus.Update(config, menu, *input);
+
+                if (networkState == Network::CONNECTED_STREAMING && !menu_input_buffering) {
+                    Network::Input(input->ds);
+                } else if (menu_input_buffering) {
+                    if (input->native.vpad.hold == 0) menu_input_buffering = false;
+                }
             }
 
             if (input->priority != last_input_priority) {
