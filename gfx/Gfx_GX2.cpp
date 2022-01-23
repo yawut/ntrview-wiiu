@@ -330,6 +330,7 @@ void DrawFillTri(const FillTri& tri) {
     auto& dest = tri.t;
     int x2, y2, x3, y3;
     switch (dest.rotation) {
+        default:
         case GFX_ROTATION_0: {
             x2 = dest.x - dest.size;
             y2 = dest.y + dest.size;
