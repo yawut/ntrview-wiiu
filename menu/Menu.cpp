@@ -93,7 +93,7 @@ const static std::pair<uint32_t, VPADButtons> wiimote_menu_map[] = {
     { WPAD_BUTTON_RIGHT, VPAD_BUTTON_UP },
     { WPAD_BUTTON_1, VPAD_BUTTON_B },
     { WPAD_BUTTON_2, VPAD_BUTTON_A },
-    { WPAD_BUTTON_PLUS | WPAD_BUTTON_MINUS, VPAD_BUTTON_STICK_L },
+    //{ WPAD_BUTTON_PLUS | WPAD_BUTTON_MINUS, VPAD_BUTTON_STICK_L },
 };
 const static std::pair<uint32_t, VPADButtons> classic_menu_map[] = {
     { WPAD_CLASSIC_BUTTON_LEFT, VPAD_BUTTON_LEFT },
@@ -102,7 +102,7 @@ const static std::pair<uint32_t, VPADButtons> classic_menu_map[] = {
     { WPAD_CLASSIC_BUTTON_UP, VPAD_BUTTON_UP },
     { WPAD_CLASSIC_BUTTON_B, VPAD_BUTTON_B },
     { WPAD_CLASSIC_BUTTON_A, VPAD_BUTTON_A },
-    { WPAD_CLASSIC_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_MINUS, VPAD_BUTTON_STICK_L },
+    //{ WPAD_CLASSIC_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_MINUS, VPAD_BUTTON_STICK_L },
 };
 const static std::pair<uint32_t, VPADButtons> pro_menu_map[] = {
     { WPAD_PRO_BUTTON_LEFT, VPAD_BUTTON_LEFT },
@@ -129,6 +129,11 @@ static uint32_t translateButtons(const Input::WiiUInputState::Native& input) {
                     auto [kpad_btn, vpad_btn] = btn;
                     if ((kpad.trigger & kpad_btn) == kpad_btn) buttons |= vpad_btn;
                 }
+                //special case: use hold instead of trigger for multi-button combos
+                if ((kpad.hold & (WPAD_BUTTON_PLUS | WPAD_BUTTON_MINUS)) ==
+                    (WPAD_BUTTON_PLUS | WPAD_BUTTON_MINUS)) {
+                    buttons |= VPAD_BUTTON_STICK_L;
+                }
                 break;
             }
             case WPAD_EXT_CLASSIC:
@@ -136,6 +141,11 @@ static uint32_t translateButtons(const Input::WiiUInputState::Native& input) {
                 for (const auto& btn : classic_menu_map) {
                     auto [kpad_btn, vpad_btn] = btn;
                     if ((kpad.classic.trigger & kpad_btn) == kpad_btn) buttons |= vpad_btn;
+                }
+                //special case: use hold instead of trigger for multi-button combos
+                if ((kpad.classic.hold & (WPAD_CLASSIC_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_MINUS)) ==
+                    (WPAD_CLASSIC_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_MINUS)) {
+                    buttons |= VPAD_BUTTON_STICK_L;
                 }
                 break;
             }
