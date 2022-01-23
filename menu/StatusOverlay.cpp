@@ -1,20 +1,16 @@
 #include "StatusOverlay.hpp"
 
-void StatusOverlay::Change(const std::string& host) {
-    connecting_text.Change("Connecting to " + host);
-}
-
 StatusOverlay::StatusOverlay(const std::string& host) :
     connecting_text(""),
     attempt_text(", attempt "),
     connected_text("Connected."),
     bad_ip_text("Bad IP - press Left Stick for menu") {
-    Change(host);
+    ChangeHost(host);
 }
 
-void StatusOverlay::Render(Network::State networkState) {
+void StatusOverlay::Render() {
     int height = Gfx::GetCurrentScreenHeight();
-    if (networkState == Network::CONNECTING) {
+    if (network_state == Network::CONNECTING) {
         int x = connecting_text.baseline_y;
         connecting_text.Render(x, height - connecting_text.d.h);
         x += connecting_text.d.w;
@@ -28,9 +24,9 @@ void StatusOverlay::Render(Network::State networkState) {
             attempts_num.Render(x, height - attempts_num.d.h);
             x += attempts_num.d.w;
         }
-    } else if (networkState == Network::CONNECTED_WAIT) {
+    } else if (network_state == Network::CONNECTED_WAIT) {
         connected_text.Render(connected_text.baseline_y, height - connected_text.d.h);
-    } else if (networkState == Network::ERR_BAD_IP) {
+    } else if (network_state == Network::ERR_BAD_IP) {
         bad_ip_text.Render(bad_ip_text.baseline_y, height - bad_ip_text.d.h);
     }
 }

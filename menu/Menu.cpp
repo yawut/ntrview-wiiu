@@ -83,7 +83,7 @@ void Menu::Render() {
 
 bool Menu::Update(Config& config, const Input::WiiUInputState::Native& input) {
     if (config.menu_changed) {
-        overlay.Change(config.networkconfig.host);
+        overlay.ChangeHost(config.networkconfig.host);
         ip.text.Change(config.networkconfig.host);
         profile.text.Change(config.profiles[config.profile].name);
 

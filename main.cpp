@@ -174,6 +174,8 @@ int main(int argc, char** argv) {
         Network::State networkState = Network::GetNetworkState();
         const auto& profile = config.profiles[config.profile];
 
+        menus.overlay.NetworkState(networkState);
+
         //inputs
         auto input = Input::Get(profile.layout_drc[1]);
         if (input) {
@@ -221,7 +223,7 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_tv[curRes][1]);
             }
         }
-        menus.overlay.Render(networkState);
+        menus.overlay.Render();
         if (menu) menus.Render();
         nn::swkbd::DrawTV();
 
@@ -237,7 +239,7 @@ int main(int argc, char** argv) {
                 btmTexture.Render(profile.layout_drc[1]);
             }
         }
-        menus.overlay.Render(networkState);
+        menus.overlay.Render();
         if (menu) menus.Render();
         nn::swkbd::DrawDRC();
 
