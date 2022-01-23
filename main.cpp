@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 
     bool menu = false;
     bool menu_input_buffering = false;
+    Input::Priority last_input_priority = Input::Priority::VPAD;
 #ifdef __WIIU__
     while (WHBProcIsRunning()) {
 #else
@@ -202,6 +203,11 @@ int main(int argc, char** argv) {
                 Network::Input(input->ds);
             } else if (menu_input_buffering) {
                 if (input->native.vpad.hold == 0) menu_input_buffering = false;
+            }
+
+            if (input->priority != last_input_priority) {
+                menus.overlay.InputPriorityMessage(input->priority, input->ext);
+                last_input_priority = input->priority;
             }
         }
 
