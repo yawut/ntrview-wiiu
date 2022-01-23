@@ -105,11 +105,12 @@ std::optional<Input::WiiUInputState> Input::Get(Gfx::Rect touch_area) {
         }
 
         uint32_t buttons;
-        KPADVec2D leftStick;
-        KPADVec2D rightStick;
+        KPADVec2D leftStick = {0, 0};
+        KPADVec2D rightStick = {0, 0};
         Input::ExtType ext = MapForKPADExt(kpad.extensionType);
 
         switch (kpad.extensionType) {
+            default:
             case WPAD_EXT_CORE:
             case WPAD_EXT_MPLUS: {
                 buttons = kpad.hold;
