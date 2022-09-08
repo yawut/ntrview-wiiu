@@ -94,7 +94,7 @@ std::optional<Input::WiiUInputState> Input::Get(Gfx::Rect touch_area) {
     for (int i = 0; i < 4; i++) {
         KPADStatus& kpad = input.native.kpad[i];
 
-        int32_t err;
+        KPADError err;
         int res = KPADReadEx((KPADChan)i, &kpad, 1, &err);
         if (res == 0) {
             kpad.error = 1;

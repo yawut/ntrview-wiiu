@@ -2,7 +2,6 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{DEVKITPRO}/wut/share/wut.toolchain.cmake")
 cmake_minimum_required(VERSION 3.16)
 
 project(ntrview C CXX)
-include("${WUT_ROOT}/share/wut.cmake" REQUIRED)
 
 add_executable(ntrview
     main.cpp

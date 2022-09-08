@@ -250,7 +250,7 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
                     kbd.keyboardArg.configArg.keyboardMode = nn::swkbd::KeyboardMode::Numpad;
                     kbd.keyboardArg.configArg.numpadCharLeft = L'.';
                     kbd.keyboardArg.configArg.disableNewLine = true;
-                    kbd.inputFormArg.type = nn::swkbd::InputFormType::inputform0;
+                    kbd.inputFormArg.type = nn::swkbd::InputFormType::InputForm0;
                     kbd.inputFormArg.maxTextLength = 15;
                     kbd.inputFormArg.hintText = u"Please enter your 3DS's IP address.";
                     swkbd_open = nn::swkbd::AppearInputForm(kbd);
