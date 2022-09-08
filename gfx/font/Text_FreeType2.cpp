@@ -2,6 +2,7 @@
 #include "gfx/Gfx.hpp"
 #include "common.h"
 
+#include <coreinit/memory.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <unordered_map>
@@ -145,7 +146,15 @@ bool Init() {
         return false;
     }
 
-    error = FT_New_Face(library, RAMFS_DIR "/opensans.ttf", 0, &opensans);
+    void* ttf = nullptr;
+    uint32_t ttf_size = 0;
+    OSGetSharedData(OS_SHAREDDATATYPE_FONT_STANDARD, 0, &ttf, &ttf_size);
+    if (!ttf || !ttf_size) {
+        printf("[FT2] Couldn't read OS shared font!\n");
+        return false;
+    }
+
+    error = FT_New_Memory_Face(library, (const FT_Byte*)ttf, (FT_Long)ttf_size, 0, &opensans);
     if (error) {
         printf("[FT2] Couldn't read font! %d\n", error);
         return false;

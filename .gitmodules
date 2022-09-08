@@ -1,6 +1,3 @@
-[submodule "ext/resinfs"]
-	path = ext/resinfs
-	url = https://gitlab.com/4TU/resinfs
 [submodule "ext/inipp"]
 	path = ext/inipp
 	url = https://github.com/mcmtroffaes/inipp

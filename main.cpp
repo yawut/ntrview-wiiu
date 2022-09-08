@@ -18,7 +18,6 @@
 #include <whb/log_cafe.h>
 #include <whb/proc.h>
 #include <sys/iosupport.h>
-#include <romfs-wiiu.h>
 
 static ssize_t wiiu_log_write(struct _reent* r, void* fd, const char* ptr, size_t len) {
     (void)r; (void)fd;
@@ -48,11 +47,6 @@ int main(int argc, char** argv) {
     int ret;
     bool bret;
     (void)argc, (void)argv;
-
-    #ifdef USE_RAMFS
-    ramfsInit();
-    OnLeavingScope rfs_c([&] { ramfsExit(); });
-    #endif
 
     #ifdef __WIIU__
     WHBLogUdpInit();

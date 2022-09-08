@@ -44,31 +44,3 @@ target_link_libraries(ntrview
 target_compile_definitions(ntrview PRIVATE
     __WIIU__ GFX_GX2 TXT_FT2 INPUT_ENABLE INPUT_WIIU
 )
-
-#ramfs
-target_compile_definitions(ntrview PRIVATE
-    USE_RAMFS
-)
-add_custom_command(
-    OUTPUT app.romfs.o
-    COMMAND tar -H ustar -cvf romfs.tar -C "${CMAKE_CURRENT_SOURCE_DIR}/resin" .
-    COMMAND ${CMAKE_LINKER} --relocatable --format binary --output app.romfs.o romfs.tar
-    COMMAND rm -f romfs.tar
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resin"
-)
-set_source_files_properties(
-    app.romfs.o
-    PROPERTIES
-    EXTERNAL_OBJECT true
-    GENERATED true
-)
-add_library(romfs
-    app.romfs.o
-    ext/resinfs/source/romfs.c
-)
-target_include_directories(romfs
-    PUBLIC
-        ext/resinfs/include
-)
-
-target_link_libraries(ntrview romfs)
