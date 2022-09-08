@@ -14,6 +14,15 @@ add_executable(ntrview
     menu/Menu.cpp
 )
 wut_create_rpx(ntrview)
+wut_create_wuhb(ntrview
+    NAME NTRView Remote Viewer
+    SHORTNAME NTRView
+    AUTHOR quarky
+    ICON dist/ntrview-iconTex.tga
+    TVSPLASH dist/ntrview-bootTvTex.tga
+    DRCSPLASH dist/ntrview-bootDrcTex.tga
+)
+
 target_include_directories(ntrview PRIVATE
     .
     ext/inipp/inipp
