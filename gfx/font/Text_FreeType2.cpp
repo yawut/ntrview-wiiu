@@ -80,7 +80,7 @@ static bool cacheNewGlyph(FT_UInt glyph_index) {
     return true;
 }
 
-void Text::Render(int x, int baseline_y) {
+void Text::Render(int x, int baseline_y, Gfx::rgb colour) {
     for (auto c : this->text) {
         FT_UInt glyph_index = FT_Get_Char_Index(opensans, c);
         if (!glyph_cache.contains(glyph_index)) {
@@ -101,7 +101,7 @@ void Text::Render(int x, int baseline_y) {
             .x = x + tex_rect.x,
             .y = baseline_y + tex_rect.y,
             .d = tex.d,
-        });
+        }, colour);
         x += tex_rect.d.w;
         //TODO FT2 height adjustments
     }

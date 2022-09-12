@@ -1,4 +1,5 @@
 #include "Menu.hpp"
+#include "gfx/JPEG.h"
 
 #include <nn/swkbd.h>
 #include <string>
@@ -11,21 +12,13 @@ enum MenuItemID {
     MAX,
 };
 
-Menu::Menu(Config& config) :
+Menu::Menu(Config& config, tjhandle tj_handle) :
 overlay(config.networkconfig.host),
-bg(
-    (Gfx::Rect) {
-        .x = 0,
-        .y = 0,
-        .d = {
-            .w = 1920,
-            .h = 1080,
-        },
-    },
-    (Gfx::rgb) { .a = 200 }),
 ip("3DS IP:", IP_ADDRESS),
 profile("Profile:", PROFILE) {
     config.menu_changed = true;
+    /*  Load background image */
+    bg = Gfx::LoadFromJPEG(tj_handle, "fs:/vol/content/bgtexture.jpg");
 }
 
 const static Gfx::Rect pad = (Gfx::Rect) {
@@ -45,7 +38,7 @@ static bool profile_has_prev = false;
 
 int Menu::DrawMenuItem(MenuItem& item, int y) {
     int width = Gfx::GetCurrentScreenWidth();
-    item.label.Render(pad.x, y + pad.y + item.label.pt_size);
+    item.label.Render(pad.x, y + pad.y + item.label.pt_size, text_colour);
 
     int box_h = (item.text.pt_size * 4) / 3;
 
@@ -57,7 +50,7 @@ int Menu::DrawMenuItem(MenuItem& item, int y) {
             .h = box_h,
         },
     }, (item.id == selected_item) ? selected_colour : unselected_colour));
-    item.text.Render(width - pad.x - item.text.d.w, y + pad.y + item.text.pt_size);
+    item.text.Render(width - pad.x - item.text.d.w, y + pad.y + item.text.pt_size, text_colour);
 
     if (item.id == selected_item && item.id == PROFILE) {
         int ty = y + pad.y + box_h / 2;
@@ -79,7 +72,12 @@ int Menu::DrawMenuItem(MenuItem& item, int y) {
 }
 
 void Menu::Render() {
-    Gfx::DrawFillRect(bg);
+    bg.Render((Gfx::Rect) {
+        .d = {
+            .w = Gfx::GetCurrentScreenWidth(),
+            .h = Gfx::GetCurrentScreenHeight(),
+        },
+    });
     int y = 0;
 
     y += DrawMenuItem(ip, y);
@@ -241,6 +239,7 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
 
         if (buttons & VPAD_BUTTON_A) {
             switch (selected_item) {
+                default:
                 case NONE: {
                     break;
                 }

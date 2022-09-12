@@ -18,25 +18,25 @@ void StatusOverlay::Render() {
     int height = Gfx::GetCurrentScreenHeight();
     if (network_state == Network::CONNECTING) {
         int x = pad.x;
-        connecting_text.Render(x, height - pad.y);
+        connecting_text.Render(x, height - pad.y, text_colour);
         x += connecting_text.d.w;
 
         int connect_attempts = Network::GetConnectionAttempts();
         if (connect_attempts > 0) {
-            attempt_text.Render(x, height - pad.y);
+            attempt_text.Render(x, height - pad.y, text_colour);
             x += attempt_text.d.w;
 
             Text::Text attempts_num(std::to_string(connect_attempts));
-            attempts_num.Render(x, height - pad.y);
+            attempts_num.Render(x, height - pad.y, text_colour);
             x += attempts_num.d.w;
         }
     } else if (network_state == Network::CONNECTED_WAIT) {
-        connected_text.Render(pad.x, height - pad.y);
+        connected_text.Render(pad.x, height - pad.y, text_colour);
     } else if (network_state == Network::ERR_BAD_IP) {
-        bad_ip_text.Render(pad.x, height - pad.y);
+        bad_ip_text.Render(pad.x, height - pad.y, text_colour);
     } else if (input_message_timeout) {
         if (OSGetTime() < input_message_timeout) {
-            input_priority_text.Render(pad.x, height - pad.y);
+            input_priority_text.Render(pad.x, height - pad.y, text_colour);
         } else input_message_timeout = 0;
     }
 }

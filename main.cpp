@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     Gfx::PrepRender();
     Gfx::PrepRenderBtm();
     Gfx::Clear(config.background);
-    loading_text.Render(30, 480 - 30);
+    loading_text.Render(30, 480 - 30, {});
     Gfx::DoneRenderBtm();
     Gfx::Present();
 
@@ -147,20 +147,13 @@ int main(int argc, char** argv) {
         return 3;
     }
 
-/*  Load background image */
-    Gfx::Texture background = Gfx::LoadFromJPEG(tj_handle, "fs:/vol/content/bgtexture.jpg");
-    if (!background.valid()) {
-        printf("Couldn't load background: %s\n", Gfx::GetError());
-        return 3;
-    }
-
     {
     /*  Read config file */
         std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
         config.LoadINI(config_file);
     } //config_file goes out of scope here
 
-    Menu menus(config);
+    Menu menus(config, tj_handle);
 
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, &config.networkconfig);
@@ -227,12 +220,6 @@ int main(int argc, char** argv) {
         Gfx::PrepRender();
         Gfx::PrepRenderTop();
         Gfx::Clear(config.background);
-        background.Render((Gfx::Rect) {
-            .d = {
-                .w = Gfx::GetCurrentScreenWidth(),
-                .h = Gfx::GetCurrentScreenHeight(),
-            },
-        }, config.background);
 
         if (networkState == Network::CONNECTED_STREAMING) {
             if (profile.layout_tv[curRes][0].d.w) {
@@ -249,12 +236,6 @@ int main(int argc, char** argv) {
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
         Gfx::Clear(config.background);
-        background.Render((Gfx::Rect) {
-            .d = {
-                .w = Gfx::GetCurrentScreenWidth(),
-                .h = Gfx::GetCurrentScreenHeight(),
-            },
-        }, config.background);
 
         if (networkState == Network::CONNECTED_STREAMING) {
             if (profile.layout_drc[0].d.w) {

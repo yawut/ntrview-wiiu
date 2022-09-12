@@ -29,4 +29,11 @@ private:
     Text::Text connected_text;
     Text::Text bad_ip_text;
     Text::Text input_priority_text;
+
+    constexpr static Gfx::rgb text_colour = (Gfx::rgb) {
+        .r = 0xFF,
+        .g = 0xFF,
+        .b = 0xFF,
+        .a = 0xFF,
+    };
 };
