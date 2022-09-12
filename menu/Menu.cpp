@@ -19,8 +19,7 @@ profile(u"Profile", PROFILE),
 back_input_text(u"\uE001 Back"),
 move_input_text(u"\uE07D Move"),
 select_input_text(u"\uE07E Select"),
-edit_input_text(u"\uE000 Edit"),
-confirm_input_text(u"\uE000 Confirm")
+edit_input_text(u"\uE000 Edit")
 {
     config.menu_changed = true;
     /*  Load background image */
@@ -32,13 +31,13 @@ const static Gfx::Rect pad = (Gfx::Rect) {
     .y = 30,
 };
 const static Gfx::Rect text_pad = (Gfx::Rect) {
-    .x = 5,
+    .x = 10,
     .y = 20,
 };
+const static int tri_size = 20;
 
 static bool swkbd_open = false;
 static int selected_item = IP_ADDRESS;
-static bool editing_item = false;
 
 static bool profile_has_next = false;
 static bool profile_has_prev = false;
@@ -61,6 +60,24 @@ int Menu::DrawMenuItem(MenuItem& item, int y) {
 
     if (selected_item == item.id) {
         DrawSelectionOutline(btn_rect);
+
+        if (item.id == PROFILE) {
+            int ty = btn_rect.y + (btn_rect.d.h / 2);
+            if (profile_has_prev)
+                Gfx::DrawFillTri(Gfx::FillTri {
+                    Gfx::Tri {
+                        .x = btn_rect.x - text_pad.x - tri_size, .y = ty,
+                        .size = tri_size, .rotation = Gfx::GFX_ROTATION_90,
+                    }, arrow_colour
+                });
+            if (profile_has_next)
+                Gfx::DrawFillTri(Gfx::FillTri {
+                    Gfx::Tri {
+                        .x = btn_rect.x + btn_rect.d.w + text_pad.x + tri_size, .y = ty,
+                        .size = tri_size, .rotation = Gfx::GFX_ROTATION_270,
+                    }, arrow_colour
+                });
+        }
     }
 
     return y;
@@ -83,11 +100,11 @@ void Menu::Render() {
 
     back_input_text.Render(pad.x, height - pad.y, text_colour);
     y = height - pad.y;
-    if (editing_item) {
-        int w = std::max(select_input_text.d.w, confirm_input_text.d.w);
+    if (selected_item == PROFILE) {
+        int w = std::max(move_input_text.d.w, select_input_text.d.w);
+        move_input_text.Render(width - pad.x - w, y, text_colour);
+        y -= pad.y + move_input_text.d.h;
         select_input_text.Render(width - pad.x - w, y, text_colour);
-        y -= pad.y + select_input_text.d.h;
-        confirm_input_text.Render(width - pad.x - w, y, text_colour);
     } else {
         int w = std::max(move_input_text.d.w, edit_input_text.d.w);
         move_input_text.Render(width - pad.x - w, y, text_colour);
@@ -96,7 +113,6 @@ void Menu::Render() {
     }
 }
 
-const static Gfx::rgb outline_colour = { .r = 0x00, .g = 0x9a, .b = 0xc7 };
 const static Gfx::Dimensions outline_size = {.w = 30, .h = 10};
 
 void Menu::DrawSelectionOutline(Gfx::Rect btnRect) {
@@ -275,56 +291,34 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
 
     if (swkbd_open) return true;
 
-    if (editing_item) {
-        switch (selected_item) {
-            case PROFILE: {
-                if (buttons & VPAD_BUTTON_LEFT) {
-                    config.PrevProfile();
-                }
-                if (buttons & VPAD_BUTTON_RIGHT) {
-                    config.NextProfile();
-                }
-            }
-        }
-        if (buttons & (VPAD_BUTTON_A | VPAD_BUTTON_B)) {
-            editing_item = false;
-        }
-    } else {
-        if (buttons & VPAD_BUTTON_DOWN) {
-            if (selected_item < MenuItemID::MAX - 1) selected_item++;
-        }
-        if (buttons & VPAD_BUTTON_UP) {
-            if (selected_item > MenuItemID::NONE) selected_item--;
-        }
+    if (buttons & VPAD_BUTTON_DOWN) {
+        if (selected_item < MenuItemID::MAX - 1) selected_item++;
+    }
+    if (buttons & VPAD_BUTTON_UP) {
+        if (selected_item > MenuItemID::NONE) selected_item--;
+    }
 
-        if (buttons & VPAD_BUTTON_A) {
-            switch (selected_item) {
-                default:
-                case NONE: {
-                    break;
-                }
-                case IP_ADDRESS: {
-                    nn::swkbd::AppearArg kbd;
-                    kbd.keyboardArg.configArg.controllerType = get_controller(input.priority);
-                    kbd.keyboardArg.configArg.keyboardMode = nn::swkbd::KeyboardMode::Numpad;
-                    kbd.keyboardArg.configArg.numpadCharLeft = L'.';
-                    kbd.keyboardArg.configArg.disableNewLine = true;
-                    kbd.inputFormArg.type = nn::swkbd::InputFormType::InputForm0;
-                    kbd.inputFormArg.maxTextLength = 15;
-                    kbd.inputFormArg.hintText = u"Please enter your 3DS's IP address.";
-                    swkbd_open = nn::swkbd::AppearInputForm(kbd);
-                    break;
-                }
-                case PROFILE: {
-                    editing_item = true;
-                    break;
-                }
-            }
-        }
+    if (buttons & VPAD_BUTTON_LEFT && selected_item == PROFILE) {
+        config.PrevProfile();
+    }
+    if (buttons & VPAD_BUTTON_RIGHT && selected_item == PROFILE) {
+        config.NextProfile();
+    }
 
-        if (buttons & VPAD_BUTTON_B) {
-            return false;
-        }
+    if (buttons & VPAD_BUTTON_A && selected_item == IP_ADDRESS) {
+        nn::swkbd::AppearArg kbd;
+        kbd.keyboardArg.configArg.controllerType = get_controller(input.priority);
+        kbd.keyboardArg.configArg.keyboardMode = nn::swkbd::KeyboardMode::Numpad;
+        kbd.keyboardArg.configArg.numpadCharLeft = L'.';
+        kbd.keyboardArg.configArg.disableNewLine = true;
+        kbd.inputFormArg.type = nn::swkbd::InputFormType::InputForm0;
+        kbd.inputFormArg.maxTextLength = 15;
+        kbd.inputFormArg.hintText = u"Please enter your 3DS's IP address.";
+        swkbd_open = nn::swkbd::AppearInputForm(kbd);
+    }
+
+    if (buttons & VPAD_BUTTON_B) {
+        return false;
     }
 
     return true;
