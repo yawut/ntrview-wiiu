@@ -2,6 +2,7 @@
 #include <inipp.h>
 
 #include "gfx/Gfx.hpp"
+#include "gfx/JPEG.h"
 #include "gfx/font/Text.hpp"
 #include "input/Input.hpp"
 #include "menu/Menu.hpp"
@@ -13,6 +14,8 @@
 #ifdef __WIIU__
 #include <nn/swkbd.h>
 #include <coreinit/filesystem.h>
+#include <proc_ui/procui.h>
+#include <sysapp/launch.h>
 #include <whb/log.h>
 #include <whb/log_udp.h>
 #include <whb/log_cafe.h>
@@ -144,6 +147,13 @@ int main(int argc, char** argv) {
         return 3;
     }
 
+/*  Load background image */
+    Gfx::Texture background = Gfx::LoadFromJPEG(tj_handle, "fs:/vol/content/bgtexture.jpg");
+    if (!background.valid()) {
+        printf("Couldn't load background: %s\n", Gfx::GetError());
+        return 3;
+    }
+
     {
     /*  Read config file */
         std::ifstream config_file(NTRVIEW_DIR "/ntrview.ini");
@@ -217,6 +227,12 @@ int main(int argc, char** argv) {
         Gfx::PrepRender();
         Gfx::PrepRenderTop();
         Gfx::Clear(config.background);
+        background.Render((Gfx::Rect) {
+            .d = {
+                .w = Gfx::GetCurrentScreenWidth(),
+                .h = Gfx::GetCurrentScreenHeight(),
+            },
+        }, config.background);
 
         if (networkState == Network::CONNECTED_STREAMING) {
             if (profile.layout_tv[curRes][0].d.w) {
@@ -233,6 +249,12 @@ int main(int argc, char** argv) {
         Gfx::DoneRenderTop();
         Gfx::PrepRenderBtm();
         Gfx::Clear(config.background);
+        background.Render((Gfx::Rect) {
+            .d = {
+                .w = Gfx::GetCurrentScreenWidth(),
+                .h = Gfx::GetCurrentScreenHeight(),
+            },
+        }, config.background);
 
         if (networkState == Network::CONNECTED_STREAMING) {
             if (profile.layout_drc[0].d.w) {

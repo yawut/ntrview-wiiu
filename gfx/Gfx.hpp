@@ -91,7 +91,8 @@ public:
     Dimensions d;
     int bpp = 32;
     int bypp = 4;
-    void Render(Rect dest);
+    void Render(Rect dest, rgb colour);
+    void Render(Rect dest) { Render(dest, (rgb) { .r = 0xff, .g = 0xff, .b = 0xff, .a = 0xff}); }
 
     DrawMode mode;
 
@@ -118,7 +119,7 @@ public:
             GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A
         ),
     };
-    bool valid() { return true; }
+    bool valid() { return d.w > 0 && d.h > 0; }
 #endif
 };
 

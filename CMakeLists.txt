@@ -10,11 +10,14 @@ add_executable(ntrview
     menu/StatusOverlay.cpp
     input/Input_wiiu.cpp
     gfx/Gfx_GX2.cpp
+    gfx/Targa.cpp
+    gfx/JPEG.cpp
     gfx/font/Text_FreeType2.cpp
     menu/Menu.cpp
 )
 wut_create_rpx(ntrview)
 wut_create_wuhb(ntrview
+    CONTENT content
     NAME NTRView Remote Viewer
     SHORTNAME NTRView
     AUTHOR quarky

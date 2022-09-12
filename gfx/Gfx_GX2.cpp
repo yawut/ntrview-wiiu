@@ -18,11 +18,13 @@ static struct {
     WHBGfxShaderGroup shader;
     int aPosition, aTexCoord;
     GX2UniformVar* uRCPScreenSize;
+    GX2UniformVar* uBaseColour;
 } shader_main;
 static struct {
     WHBGfxShaderGroup shader;
     int aPosition, aTexCoord;
     GX2UniformVar* uRCPScreenSize;
+    GX2UniformVar* uBaseColour;
 } shader_text;
 static struct {
     WHBGfxShaderGroup shader;
@@ -89,6 +91,11 @@ bool Init() {
         printf("[GX2] Couldn't find uRCPScreenSize!\n");
         return false;
     }
+    shader_main.uBaseColour = GX2GetPixelUniformVar(shader_main.shader.pixelShader, "uBaseColour");
+    if (!shader_main.uBaseColour) {
+        printf("[GX2] Couldn't find uBaseColour!\n");
+        return false;
+    }
 
     WHBGfxInitFetchShader(&shader_main.shader);
 
@@ -107,6 +114,11 @@ bool Init() {
     shader_text.uRCPScreenSize = GX2GetVertexUniformVar(shader_text.shader.vertexShader, "uRCPScreenSize");
     if (!shader_text.uRCPScreenSize) {
         printf("[GX2] Couldn't find uRCPScreenSize!\n");
+        return false;
+    }
+    shader_text.uBaseColour = GX2GetPixelUniformVar(shader_text.shader.pixelShader, "uBaseColour");
+    if (!shader_text.uBaseColour) {
+        printf("[GX2] Couldn't find uBaseColour!\n");
         return false;
     }
 
@@ -185,7 +197,7 @@ void Texture::Unlock(std::span<uint8_t>& pixels) {
     this->locked = false;
 }
 
-void Texture::Render(Rect dest) {
+void Texture::Render(Rect dest, rgb colour) {
     GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_ALWAYS);
     GX2SetColorControl(GX2_LOGIC_OP_COPY, 0xFF, FALSE, TRUE);
     GX2SetBlendControl(GX2_RENDER_TARGET_0,
@@ -233,6 +245,8 @@ void Texture::Render(Rect dest) {
 
             //Shader needs the reciprocal of the screen size to fix coordinates
             GX2SetVertexUniformReg(shader_main.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+            auto _colour = mkDrawColour(colour);
+            GX2SetPixelUniformReg(shader_text.uBaseColour->offset, 4, (void*)&_colour);
             break;
         }
         case DRAWMODE_TEXT: {
@@ -255,6 +269,8 @@ void Texture::Render(Rect dest) {
 
             //Shader needs the reciprocal of the screen size to fix coordinates
             GX2SetVertexUniformReg(shader_text.uRCPScreenSize->offset, 2, (void*)&curRCPScreenSize);
+            auto _colour = mkDrawColour(colour);
+            GX2SetPixelUniformReg(shader_text.uBaseColour->offset, 4, (void*)&_colour);
             break;
         }
     }
