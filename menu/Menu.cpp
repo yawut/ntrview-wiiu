@@ -100,15 +100,12 @@ void Menu::Render() {
 
     back_input_text.Render(pad.x, height - pad.y, text_colour);
     y = height - pad.y;
+    int w = std::max(std::max(move_input_text.d.w, select_input_text.d.w), edit_input_text.d.w);
+    move_input_text.Render(width - pad.x - w, y, text_colour);
+    y -= pad.y + move_input_text.d.h;
     if (selected_item == PROFILE) {
-        int w = std::max(move_input_text.d.w, select_input_text.d.w);
-        move_input_text.Render(width - pad.x - w, y, text_colour);
-        y -= pad.y + move_input_text.d.h;
         select_input_text.Render(width - pad.x - w, y, text_colour);
     } else {
-        int w = std::max(move_input_text.d.w, edit_input_text.d.w);
-        move_input_text.Render(width - pad.x - w, y, text_colour);
-        y -= pad.y + move_input_text.d.h;
         edit_input_text.Render(width - pad.x - w, y, text_colour);
     }
 }
