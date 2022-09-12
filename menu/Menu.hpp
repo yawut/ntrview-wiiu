@@ -29,6 +29,12 @@ private:
     MenuItem profile;
     static int DrawMenuItem(MenuItem& item, int y);
 
+    Text::Text back_input_text;
+    Text::Text move_input_text;
+    Text::Text select_input_text;
+    Text::Text edit_input_text;
+    Text::Text confirm_input_text;
+
     constexpr static Gfx::rgb selected_colour = {
         .r = 255,
         .a = 128,

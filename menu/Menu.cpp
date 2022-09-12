@@ -15,7 +15,13 @@ enum MenuItemID {
 Menu::Menu(Config& config, tjhandle tj_handle) :
 overlay(config.networkconfig.host),
 ip(u"3DS IP:", IP_ADDRESS),
-profile(u"Profile:", PROFILE) {
+profile(u"Profile:", PROFILE),
+back_input_text(u"\uE001 Back"),
+move_input_text(u"\uE07D Move"),
+select_input_text(u"\uE07E Select"),
+edit_input_text(u"\uE000 Edit"),
+confirm_input_text(u"\uE000 Confirm")
+{
     config.menu_changed = true;
     /*  Load background image */
     bg = Gfx::LoadFromJPEG(tj_handle, "fs:/vol/content/bgtexture.jpg");
@@ -82,6 +88,23 @@ void Menu::Render() {
 
     y += DrawMenuItem(ip, y);
     y += DrawMenuItem(profile, y);
+
+    int width = Gfx::GetCurrentScreenWidth();
+    int height = Gfx::GetCurrentScreenHeight();
+
+    back_input_text.Render(pad.x, height - pad.y, text_colour);
+    y = height - pad.y;
+    if (editing_item) {
+        int w = std::max(select_input_text.d.w, confirm_input_text.d.w);
+        select_input_text.Render(width - pad.x - w, y, text_colour);
+        y -= pad.y + select_input_text.d.h;
+        confirm_input_text.Render(width - pad.x - w, y, text_colour);
+    } else {
+        int w = std::max(move_input_text.d.w, edit_input_text.d.w);
+        move_input_text.Render(width - pad.x - w, y, text_colour);
+        y -= pad.y + move_input_text.d.h;
+        edit_input_text.Render(width - pad.x - w, y, text_colour);
+    }
 }
 
 const static std::pair<uint32_t, VPADButtons> wiimote_menu_map[] = {
