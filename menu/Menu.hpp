@@ -35,12 +35,13 @@ private:
     Text::Text edit_input_text;
     Text::Text confirm_input_text;
 
-    constexpr static Gfx::rgb selected_colour = {
-        .r = 255,
-        .a = 128,
+    constexpr static Gfx::rgb button_bg {
+        .r = 0xf0, .g = 0xf0, .b = 0xf0
     };
-    constexpr static Gfx::rgb unselected_colour = {};
-    constexpr static Gfx::rgb text_colour = (Gfx::rgb) {
-        .a = 0xFF
+    constexpr static Gfx::rgb text_colour {};
+    constexpr static Gfx::rgb sub_text_colour {
+        .r = 0x50, .g = 0x50, .b = 0x50
     };
+
+    static void DrawSelectionOutline(Gfx::Rect btnRect);
 };

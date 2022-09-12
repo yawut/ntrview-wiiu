@@ -14,8 +14,8 @@ enum MenuItemID {
 
 Menu::Menu(Config& config, tjhandle tj_handle) :
 overlay(config.networkconfig.host),
-ip(u"3DS IP:", IP_ADDRESS),
-profile(u"Profile:", PROFILE),
+ip(u"3DS IP", IP_ADDRESS),
+profile(u"Profile", PROFILE),
 back_input_text(u"\uE001 Back"),
 move_input_text(u"\uE07D Move"),
 select_input_text(u"\uE07E Select"),
@@ -33,6 +33,7 @@ const static Gfx::Rect pad = (Gfx::Rect) {
 };
 const static Gfx::Rect text_pad = (Gfx::Rect) {
     .x = 5,
+    .y = 20,
 };
 
 static bool swkbd_open = false;
@@ -44,37 +45,25 @@ static bool profile_has_prev = false;
 
 int Menu::DrawMenuItem(MenuItem& item, int y) {
     int width = Gfx::GetCurrentScreenWidth();
-    item.label.Render(pad.x, y + pad.y + item.label.pt_size, text_colour);
+    y += pad.y;
 
-    int box_h = (item.text.pt_size * 4) / 3;
+    Gfx::Rect btn_rect {
+        .x = width / 4, .y = y,
+        .d = { .w = width / 2, .h = item.label.d.h + item.text.d.h + text_pad.y * 3 },
+    };
+    Gfx::DrawFillRect(Gfx::FillRect {btn_rect, button_bg});
 
-    Gfx::DrawFillRect(Gfx::FillRect((Gfx::Rect) {
-        .x = width - pad.x - item.text.d.w - text_pad.x,
-        .y = y + pad.y,
-        .d = {
-            .w = item.text.d.w + text_pad.x*2,
-            .h = box_h,
-        },
-    }, (item.id == selected_item) ? selected_colour : unselected_colour));
-    item.text.Render(width - pad.x - item.text.d.w, y + pad.y + item.text.pt_size, text_colour);
+    item.label.Render((width - item.label.d.w) / 2, y + item.label.baseline_y + text_pad.y, text_colour);
+    y += text_pad.y + item.label.d.h;
+    item.text.Render((width - item.text.d.w) / 2, y + item.text.baseline_y + text_pad.y, sub_text_colour);
+    y += text_pad.y + item.text.d.h;
+    y += text_pad.y;
 
-    if (item.id == selected_item && item.id == PROFILE) {
-        int ty = y + pad.y + box_h / 2;
-        Gfx::DrawFillTri(Gfx::FillTri((Gfx::Tri) {
-            .x = width - pad.x - item.text.d.w - (pad.x * 3 / 4),
-            .y = ty,
-            .size = pad.x / 2,
-            .rotation = Gfx::GFX_ROTATION_90,
-        }, (editing_item && profile_has_prev)? selected_colour : unselected_colour));
-        Gfx::DrawFillTri(Gfx::FillTri((Gfx::Tri) {
-            .x = width - (pad.x / 4),
-            .y = ty,
-            .size = pad.x / 2,
-            .rotation = Gfx::GFX_ROTATION_270,
-        }, (editing_item && profile_has_next)? selected_colour : unselected_colour));
+    if (selected_item == item.id) {
+        DrawSelectionOutline(btn_rect);
     }
 
-    return box_h + pad.y;
+    return y;
 }
 
 void Menu::Render() {
@@ -104,6 +93,57 @@ void Menu::Render() {
         move_input_text.Render(width - pad.x - w, y, text_colour);
         y -= pad.y + move_input_text.d.h;
         edit_input_text.Render(width - pad.x - w, y, text_colour);
+    }
+}
+
+const static Gfx::rgb outline_colour = { .r = 0x00, .g = 0x9a, .b = 0xc7 };
+const static Gfx::Dimensions outline_size = {.w = 30, .h = 10};
+
+void Menu::DrawSelectionOutline(Gfx::Rect btnRect) {
+    Gfx::FillRect rects[] {
+        {(Gfx::Rect) {
+            .x = btnRect.x,
+            .y = btnRect.y,
+            .d = {.w = outline_size.w, .h = outline_size.h},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x,
+            .y = btnRect.y,
+            .d = {.w = outline_size.h, .h = outline_size.w},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x + btnRect.d.w - outline_size.w,
+            .y = btnRect.y,
+            .d = {.w = outline_size.w, .h = outline_size.h},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x + btnRect.d.w - outline_size.h,
+            .y = btnRect.y,
+            .d = {.w = outline_size.h, .h = outline_size.w},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x,
+            .y = btnRect.y + btnRect.d.h - outline_size.h,
+            .d = {.w = outline_size.w, .h = outline_size.h},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x,
+            .y = btnRect.y + btnRect.d.h - outline_size.w,
+            .d = {.w = outline_size.h, .h = outline_size.w},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x + btnRect.d.w - outline_size.w,
+            .y = btnRect.y + btnRect.d.h - outline_size.h,
+            .d = {.w = outline_size.w, .h = outline_size.h},
+        }, outline_colour},
+        {(Gfx::Rect) {
+            .x = btnRect.x + btnRect.d.w - outline_size.h,
+            .y = btnRect.y + btnRect.d.h - outline_size.w,
+            .d = {.w = outline_size.h, .h = outline_size.w},
+        }, outline_colour},
+    };
+    for (const auto& rect : rects) {
+        Gfx::DrawFillRect(rect);
     }
 }
 
