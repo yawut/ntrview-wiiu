@@ -17,6 +17,7 @@ public:
     }
 
     Text(std::u16string text, int size = 32);
+    Text(char16_t c, int size = 32) : Text(std::u16string(&c, 1), size) {};
 
     std::u16string text;
 

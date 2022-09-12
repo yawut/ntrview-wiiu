@@ -2,11 +2,12 @@
 
 StatusOverlay::StatusOverlay(const std::string& host) :
     connecting_text(u""),
-    attempt_text(u", attempt "),
     connected_text(u"Connected."),
-    bad_ip_text(u"Bad IP - press Left Stick for menu"),
+    bad_ip_text(u"Bad IP - see menu"),
     input_priority_text(u""),
-    menu_input_text(u"\uE08A Menu") {
+    menu_input_text(u"\uE08A Menu"),
+    loading_wheel({u'\uE020', u'\uE021', u'\uE022', u'\uE023', u'\uE024', u'\uE025', u'\uE026', u'\uE027'})
+{
     ChangeHost(host);
 }
 
@@ -23,15 +24,10 @@ void StatusOverlay::Render() {
         connecting_text.Render(x, height - pad.y, text_colour);
         x += connecting_text.d.w;
 
-        int connect_attempts = Network::GetConnectionAttempts();
-        if (connect_attempts > 0) {
-            attempt_text.Render(x, height - pad.y, text_colour);
-            x += attempt_text.d.w;
-
-            Text::Text attempts_num(to_u16string(std::to_string(connect_attempts)));
-            attempts_num.Render(x, height - pad.y, text_colour);
-            x += attempts_num.d.w;
-        }
+        OSCalendarTime time;
+        OSTicksToCalendarTime(OSGetTime(), &time);
+        int ndx = time.tm_msec / 125;
+        loading_wheel.at(ndx).Render(x + pad.x, height - pad.y, text_colour);
     } else if (network_state == Network::CONNECTED_WAIT) {
         connected_text.Render(pad.x, height - pad.y, text_colour);
     } else if (network_state == Network::ERR_BAD_IP) {

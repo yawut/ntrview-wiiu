@@ -26,11 +26,11 @@ private:
     OSTime input_message_timeout;
 
     Text::Text connecting_text;
-    Text::Text attempt_text;
     Text::Text connected_text;
     Text::Text bad_ip_text;
     Text::Text input_priority_text;
     Text::Text menu_input_text;
+    std::array<Text::Text, 8> loading_wheel;
 
     constexpr static Gfx::rgb text_colour = (Gfx::rgb) {
         .r = 0xFF,
