@@ -8,6 +8,7 @@
 #include "menu/Menu.hpp"
 #include "common.h"
 #include "util.hpp"
+#include "Audio.h"
 #include "config/Config.hpp"
 #include "menu/StatusOverlay.hpp"
 
@@ -157,6 +158,12 @@ int main(int argc, char** argv) {
 
 /*  Start off networking thread */
     std::thread networkThread(Network::mainLoop, &config.networkconfig);
+
+/*  Set up audio */
+    Audio::Init();
+    OnLeavingScope _aud_c([] {
+        Audio::Shutdown();
+    });
 
     printf("gonna start rendering\n");
 

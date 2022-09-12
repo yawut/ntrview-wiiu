@@ -1,9 +1,9 @@
 #include "Menu.hpp"
+#include "Audio.h"
 #include "gfx/JPEG.h"
 
 #include <nn/swkbd.h>
 #include <string>
-#include <locale>
 
 enum MenuItemID {
     NONE = 0,
@@ -252,7 +252,10 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
     auto buttons = translateButtons(input.native);
 
     if (!open) {
-        if (buttons & VPAD_BUTTON_STICK_L) return true;
+        if (buttons & VPAD_BUTTON_STICK_L) {
+            Audio::Play1Click();
+            return true;
+        }
         return false;
     }
 
@@ -290,17 +293,25 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
     if (swkbd_open) return true;
 
     if (buttons & VPAD_BUTTON_DOWN) {
-        if (selected_item < MenuItemID::MAX - 1) selected_item++;
+        if (selected_item < MenuItemID::MAX - 1) {
+            selected_item++;
+            Audio::Play1Click();
+        }
     }
     if (buttons & VPAD_BUTTON_UP) {
-        if (selected_item > MenuItemID::NONE) selected_item--;
+        if (selected_item > MenuItemID::NONE) {
+            selected_item--;
+            Audio::Play1Click();
+        }
     }
 
     if (buttons & VPAD_BUTTON_LEFT && selected_item == PROFILE) {
         config.PrevProfile();
+        Audio::Play1Click();
     }
     if (buttons & VPAD_BUTTON_RIGHT && selected_item == PROFILE) {
         config.NextProfile();
+        Audio::Play1Click();
     }
 
     if (buttons & VPAD_BUTTON_A && selected_item == IP_ADDRESS) {
@@ -316,6 +327,7 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
     }
 
     if (buttons & VPAD_BUTTON_B) {
+        Audio::Play2Click();
         return false;
     }
 

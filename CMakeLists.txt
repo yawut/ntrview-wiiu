@@ -6,6 +6,7 @@ project(ntrview C CXX)
 add_executable(ntrview
     main.cpp
     Network.cpp
+    Audio.cpp
     config/Config.cpp
     menu/StatusOverlay.cpp
     input/Input_wiiu.cpp
