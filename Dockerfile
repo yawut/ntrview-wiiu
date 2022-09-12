@@ -1,5 +1,5 @@
 # that's right folks we building decaf
-FROM debian:buster-slim AS decaf-build
+FROM devkitpro/devkitppc:20220821 AS decaf-build
 RUN apt-get -y update && apt-get -y install --no-install-recommends \
     zlib1g-dev libcurl4-openssl-dev libssl-dev libuv1-dev libc-ares-dev python3 \
     cmake make gcc g++ git ca-certificates \
