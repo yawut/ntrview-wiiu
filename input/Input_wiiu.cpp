@@ -89,6 +89,8 @@ std::optional<Input::WiiUInputState> Input::Get(Gfx::Rect touch_area) {
             uint8_t cry = ( ry * 0x7f ) + 0x80;
             input.ds.pro.y(cry);
         }
+    } else {
+        input.native.vpad.error = err;
     }
 
     for (int i = 0; i < 4; i++) {

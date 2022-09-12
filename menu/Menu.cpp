@@ -189,7 +189,8 @@ const static std::pair<uint32_t, VPADButtons> pro_menu_map[] = {
 };
 
 static uint32_t translateButtons(const Input::WiiUInputState::Native& input) {
-    uint32_t buttons = input.vpad.trigger;
+    uint32_t buttons = 0;
+    if (!input.vpad.error) buttons |= input.vpad.trigger;
 
     for (const auto& kpad : input.kpad) {
         if (kpad.error != KPAD_ERROR_OK) continue;
