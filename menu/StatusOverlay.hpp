@@ -7,13 +7,14 @@
 #include "gfx/font/Text.hpp"
 #include "input/Input.hpp"
 #include "Network.hpp"
+#include "util.hpp"
 
 class StatusOverlay {
 public:
     StatusOverlay(const std::string& host);
     void Render();
     void ChangeHost(const std::string& host) {
-        this->connecting_text.Change("Connecting to " + host);
+        this->connecting_text.Change(u"Connecting to " + to_u16string(host));
     }
     void NetworkState(Network::State networkState) {
         this->network_state = networkState;
@@ -29,6 +30,7 @@ private:
     Text::Text connected_text;
     Text::Text bad_ip_text;
     Text::Text input_priority_text;
+    Text::Text menu_input_text;
 
     constexpr static Gfx::rgb text_colour = (Gfx::rgb) {
         .r = 0xFF,

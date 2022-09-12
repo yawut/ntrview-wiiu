@@ -11,14 +11,14 @@ public:
     const int pt_size;
 
     void Render(int x, int baseline_y, Gfx::rgb colour);
-    void Change(const std::string& text) {
+    void Change(const std::u16string& text) {
         this->text = text;
         this->Update();
     }
 
-    Text(std::string text, int size = 48);
+    Text(std::u16string text, int size = 32);
 
-    std::string text;
+    std::u16string text;
 
 private:
     void Update();

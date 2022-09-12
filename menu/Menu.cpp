@@ -14,15 +14,15 @@ enum MenuItemID {
 
 Menu::Menu(Config& config, tjhandle tj_handle) :
 overlay(config.networkconfig.host),
-ip("3DS IP:", IP_ADDRESS),
-profile("Profile:", PROFILE) {
+ip(u"3DS IP:", IP_ADDRESS),
+profile(u"Profile:", PROFILE) {
     config.menu_changed = true;
     /*  Load background image */
     bg = Gfx::LoadFromJPEG(tj_handle, "fs:/vol/content/bgtexture.jpg");
 }
 
 const static Gfx::Rect pad = (Gfx::Rect) {
-    .x = 30,
+    .x = 60,
     .y = 30,
 };
 const static Gfx::Rect text_pad = (Gfx::Rect) {
@@ -181,8 +181,8 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
 
     if (config.menu_changed) {
         overlay.ChangeHost(config.networkconfig.host);
-        ip.text.Change(config.networkconfig.host);
-        profile.text.Change(config.profiles[config.profile].name);
+        ip.text.Change(to_u16string(config.networkconfig.host));
+        profile.text.Change(to_u16string(config.profiles[config.profile].name));
 
         profile_has_next = config.GetNextProfile().has_value();
         profile_has_prev = config.GetPrevProfile().has_value();
@@ -199,10 +199,7 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
         nn::swkbd::DisappearInputForm();
         swkbd_open = false;
 
-        std::u16string utf16result(nn::swkbd::GetInputFormString());
-        //this is apparently the best the C++ stdlib has to offer
-        //thanks for removing the classes built specifically for this, c++17
-        std::string result(std::begin(utf16result), std::end(utf16result));
+        std::string result = to_string(nn::swkbd::GetInputFormString());
 
         switch (selected_item) {
             case IP_ADDRESS: {

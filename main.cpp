@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     printf("did init\n");
 
 /*  Show loading text */
-    Text::Text loading_text("Now Loading");
+    Text::Text loading_text(u"Now Loading");
     Gfx::PrepRender();
     Gfx::PrepRenderBtm();
     Gfx::Clear(config.background);

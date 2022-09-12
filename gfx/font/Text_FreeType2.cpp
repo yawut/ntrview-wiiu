@@ -9,7 +9,7 @@
 
 namespace Text {
 
-const static int PIXEL_HEIGHT = 48;
+const static int PIXEL_HEIGHT = 32;
 
 static FT_Library library;
 static FT_Face opensans;
@@ -134,7 +134,7 @@ void Text::Update() {
     this->d.h = max_y - min_y;
 }
 
-Text::Text(std::string text, int size) :
+Text::Text(std::u16string text, int size) :
     pt_size(size), text(text) {
     Text::Update();
 }

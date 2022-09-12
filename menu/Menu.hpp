@@ -22,8 +22,8 @@ private:
         Text::Text label;
         Text::Text text;
         int id;
-        MenuItem(std::string label, int id) :
-            label(label), text(""), id(id) {}
+        MenuItem(std::u16string label, int id) :
+            label(label), text(u""), id(id) {}
     };
     MenuItem ip;
     MenuItem profile;
