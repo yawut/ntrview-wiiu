@@ -16,7 +16,7 @@ Menu::Menu(Config& config, tjhandle tj_handle) :
 overlay(config.networkconfig.host),
 ip(u"3DS IP", IP_ADDRESS),
 profile(u"Profile", PROFILE),
-back_input_text(u"\uE001 Back"),
+back_input_text(u"\uE001/\uE08A Back"),
 move_input_text(u"\uE07D Move"),
 select_input_text(u"\uE07E Select"),
 edit_input_text(u"\uE000 Edit")
@@ -326,7 +326,7 @@ bool Menu::Update(Config& config, bool open, const Input::WiiUInputState& input)
         swkbd_open = nn::swkbd::AppearInputForm(kbd);
     }
 
-    if (buttons & VPAD_BUTTON_B) {
+    if (buttons & VPAD_BUTTON_B || buttons & VPAD_BUTTON_STICK_L) {
         Audio::Play2Click();
         return false;
     }
